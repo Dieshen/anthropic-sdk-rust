@@ -1,0 +1,42 @@
+[package]
+name = "anthropic-bedrock"
+description = "AWS Bedrock integration for the Anthropic SDK"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords = ["anthropic", "claude", "aws", "bedrock", "ai"]
+categories = ["api-bindings", "asynchronous"]
+
+[features]
+default = []
+
+[dependencies]
+# Core SDK
+# anthropic = { path = "../anthropic", default-features = false }
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# AWS SDK
+# aws-config = "1.0"
+# aws-sdk-bedrockruntime = "1.0"
+# aws-sigv4 = "1.0"
+# aws-credential-types = "1.0"
+
+# Async
+futures.workspace = true
+tokio.workspace = true
+
+# Utilities
+thiserror.workspace = true
+bytes.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
+
+[lints]
+workspace = true

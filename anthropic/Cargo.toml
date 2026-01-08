@@ -1,0 +1,77 @@
+[package]
+name = "anthropic"
+description = "Official Rust SDK for the Anthropic API"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords = ["anthropic", "claude", "ai", "llm", "api"]
+categories = ["api-bindings", "asynchronous"]
+readme = "../README.md"
+
+[features]
+default = ["tokio-runtime", "rustls-tls"]
+
+# Async runtimes (mutually exclusive)
+tokio-runtime = ["tokio", "tokio-stream", "reqwest/default-tls"]
+async-std-runtime = []
+
+# TLS backends
+rustls-tls = ["reqwest/rustls-tls"]
+native-tls = ["reqwest/native-tls"]
+
+# Cloud integrations
+bedrock = ["dep:anthropic-bedrock"]
+vertex = ["dep:anthropic-vertex"]
+
+# Beta features
+beta = []
+
+# All features for development
+full = ["bedrock", "vertex", "beta"]
+
+[dependencies]
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# HTTP client
+reqwest.workspace = true
+
+# Async runtime (feature-gated)
+tokio = { workspace = true, optional = true }
+tokio-stream = { workspace = true, optional = true }
+futures.workspace = true
+
+# Utilities
+thiserror.workspace = true
+derive_builder.workspace = true
+url.workspace = true
+bytes.workspace = true
+pin-project-lite.workspace = true
+secrecy.workspace = true
+base64.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+
+# Logging
+tracing.workspace = true
+
+# Cloud integrations (optional)
+anthropic-bedrock = { path = "../anthropic-bedrock", optional = true }
+anthropic-vertex = { path = "../anthropic-vertex", optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
+wiremock = "0.6"
+pretty_assertions = "1.4"
+criterion = "0.5"
+
+# Benchmarks will be added when streaming module is implemented
+# [[bench]]
+# name = "streaming"
+# harness = false
+
+[lints]
+workspace = true
