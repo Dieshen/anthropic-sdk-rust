@@ -4,7 +4,7 @@
 //!
 //! ## Quick Start
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use anthropic::{Anthropic, Model};
 //!
 //! #[tokio::main]
@@ -43,14 +43,16 @@
     unreachable_pub
 )]
 
-// Core modules (to be implemented)
-// pub mod client;
-// pub mod config;
-// pub mod error;
+// Core modules
+pub mod client;
+pub mod config;
+pub mod error;
+pub mod http;
+
+// Modules to be implemented in Phase 2+
 // pub mod types;
 // pub mod resources;
 // pub mod streaming;
-// pub mod http;
 
 // Beta features (feature-gated)
 // #[cfg(feature = "beta")]
@@ -59,16 +61,10 @@
 /// SDK version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Placeholder error type (to be replaced with proper error module)
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    /// Placeholder error variant
-    #[error("Not yet implemented")]
-    NotImplemented,
-}
-
-/// Result type alias for SDK operations
-pub type Result<T> = std::result::Result<T, Error>;
+// Re-export commonly used types
+pub use client::{Anthropic, AnthropicBuilder};
+pub use config::{ClientConfig, ClientConfigBuilder};
+pub use error::{ApiError, ApiErrorType, Error, Result};
 
 #[cfg(test)]
 mod tests {

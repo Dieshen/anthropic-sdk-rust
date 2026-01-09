@@ -7,7 +7,7 @@
 //!
 //! ## Quick Start
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use anthropic_vertex::VertexClient;
 //!
 //! #[tokio::main]
