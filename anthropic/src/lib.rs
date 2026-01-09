@@ -48,9 +48,9 @@ pub mod client;
 pub mod config;
 pub mod error;
 pub mod http;
+pub mod types;
 
-// Modules to be implemented in Phase 2+
-// pub mod types;
+// Modules to be implemented in Phase 3+
 // pub mod resources;
 // pub mod streaming;
 
@@ -65,6 +65,26 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub use client::{Anthropic, AnthropicBuilder};
 pub use config::{ClientConfig, ClientConfigBuilder};
 pub use error::{ApiError, ApiErrorType, Error, Result};
+
+// Re-export types module at top level
+pub use types::{
+    // Models
+    Model,
+    // Messages
+    Message, MessageContent, MessageCreateParams, MessageCreateParamsBuilder, MessageParam,
+    SystemPrompt, ThinkingConfig,
+    // Content
+    ContentBlock, ContentBlockParam, TextBlock, TextBlockParam,
+    ToolUseBlock, ToolResultBlockParam,
+    // Tools
+    Tool, ToolParam, ToolChoice, ToolInputSchema,
+    // Shared
+    Role, StopReason, CacheControl, Metadata,
+    // Usage
+    Usage,
+    // Batch
+    MessageBatch, BatchRequest, BatchCreateParams, BatchResult,
+};
 
 #[cfg(test)]
 mod tests {
