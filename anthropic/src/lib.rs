@@ -48,15 +48,13 @@ pub mod client;
 pub mod config;
 pub mod error;
 pub mod http;
+pub mod resources;
+pub mod streaming;
 pub mod types;
 
-// Modules to be implemented in Phase 3+
-// pub mod resources;
-// pub mod streaming;
-
 // Beta features (feature-gated)
-// #[cfg(feature = "beta")]
-// pub mod beta;
+#[cfg(feature = "beta")]
+pub mod beta;
 
 /// SDK version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -72,7 +70,7 @@ pub use types::{
     Model,
     // Messages
     Message, MessageContent, MessageCreateParams, MessageCreateParamsBuilder, MessageParam,
-    SystemPrompt, ThinkingConfig,
+    MessageTokensCount, SystemPrompt, ThinkingConfig,
     // Content
     ContentBlock, ContentBlockParam, TextBlock, TextBlockParam,
     ToolUseBlock, ToolResultBlockParam,
@@ -84,6 +82,15 @@ pub use types::{
     Usage,
     // Batch
     MessageBatch, BatchRequest, BatchCreateParams, BatchResult,
+};
+
+// Re-export resources
+pub use resources::{
+    // Messages
+    ContentBlockStart, ContentDelta, MessageCountTokensParams, MessageDeltaContent, Messages,
+    MessageStream, StreamError, StreamEvent,
+    // Models
+    ModelInfo, Models, ModelsGetParams, ModelsListParams, ModelsListResponse,
 };
 
 #[cfg(test)]

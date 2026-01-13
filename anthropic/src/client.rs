@@ -230,6 +230,15 @@ impl Anthropic {
         self.inner.config.max_retries()
     }
 
+    /// Returns a clone of the underlying HTTP client.
+    ///
+    /// This is primarily intended for internal use by resource modules
+    /// that need direct access to the HTTP client.
+    #[must_use]
+    pub(crate) fn http_client(&self) -> reqwest::Client {
+        self.inner.http_client.clone()
+    }
+
     // =========================================================================
     // Internal request methods
     // =========================================================================
@@ -251,6 +260,16 @@ impl Anthropic {
         self.request(Method::POST, path, Some(body)).await
     }
 
+    /// Makes a GET request with query parameters.
+    pub(crate) async fn get_with_query<T, Q>(&self, path: &str, query: &Q) -> Result<T>
+    where
+        T: serde::de::DeserializeOwned,
+        Q: serde::Serialize,
+    {
+        self.request_with_query(Method::GET, path, query, Option::<&()>::None)
+            .await
+    }
+
     /// Makes a DELETE request to the specified path.
     pub(crate) async fn delete<T>(&self, path: &str) -> Result<T>
     where
@@ -258,6 +277,151 @@ impl Anthropic {
     {
         self.request(Method::DELETE, path, Option::<&()>::None)
             .await
+    }
+
+    /// Makes a POST request and returns the raw response for streaming.
+    ///
+    /// This is used internally for streaming requests where we need access
+    /// to the raw response body.
+    pub(crate) async fn post_raw<B>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<reqwest::Response>
+    where
+        B: serde::Serialize,
+    {
+        let url = self.build_url(path)?;
+
+        let response = self
+            .inner
+            .http_client
+            .request(Method::POST, url)
+            .json(body)
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            Ok(response)
+        } else {
+            // Parse error response
+            let status = response.status();
+            let request_id = response
+                .headers()
+                .get(HEADER_REQUEST_ID)
+                .and_then(|v| v.to_str().ok())
+                .map(String::from);
+            let retry_after = parse_retry_after(response.headers());
+
+            let error = self
+                .parse_error_response(status, request_id, retry_after, response)
+                .await?;
+
+            Err(error.into())
+        }
+    }
+
+    /// Makes an HTTP request with query parameters and retry logic.
+    async fn request_with_query<T, Q, B>(
+        &self,
+        method: Method,
+        path: &str,
+        query: &Q,
+        body: Option<&B>,
+    ) -> Result<T>
+    where
+        T: serde::de::DeserializeOwned,
+        Q: serde::Serialize,
+        B: serde::Serialize,
+    {
+        let mut url = self.build_url(path)?;
+
+        // Serialize query parameters and add to URL
+        let query_string = serde_urlencoded::to_string(query)
+            .map_err(|e| Error::RequestBuild(format!("Failed to serialize query parameters: {e}")))?;
+        if !query_string.is_empty() {
+            url.set_query(Some(&query_string));
+        }
+
+        let mut attempt = 0;
+
+        loop {
+            attempt += 1;
+            trace!(method = %method, url = %url, attempt, "Making request with query");
+
+            // Build the request
+            let mut request_builder = self.inner.http_client.request(method.clone(), url.clone());
+
+            // Add body if present
+            if let Some(body) = body {
+                request_builder = request_builder.json(body);
+            }
+
+            // Add retry count header
+            if attempt > 1 {
+                request_builder = request_builder.header("x-stainless-retry-count", attempt - 1);
+            }
+
+            // Send the request
+            let result = request_builder.send().await;
+
+            match result {
+                Ok(response) => {
+                    let status = response.status();
+                    let request_id = response
+                        .headers()
+                        .get(HEADER_REQUEST_ID)
+                        .and_then(|v| v.to_str().ok())
+                        .map(String::from);
+                    let retry_after = parse_retry_after(response.headers());
+
+                    debug!(
+                        status = %status,
+                        request_id = ?request_id,
+                        "Received response"
+                    );
+
+                    if status.is_success() {
+                        // Parse successful response
+                        let data = response.json::<T>().await?;
+                        return Ok(data);
+                    }
+
+                    // Parse error response
+                    let error = self
+                        .parse_error_response(status, request_id, retry_after, response)
+                        .await?;
+
+                    // Check if we should retry
+                    if error.is_retryable() {
+                        if let Some(delay) =
+                            self.inner.retry_policy.should_retry(&error.clone().into(), attempt)
+                        {
+                            debug!(delay = ?delay, attempt, "Retrying after error");
+                            tokio::time::sleep(delay).await;
+                            continue;
+                        }
+                    }
+
+                    return Err(error.into());
+                }
+                Err(err) => {
+                    let error = Error::Http(err);
+
+                    // Check if we should retry
+                    if error.is_retryable() {
+                        if let Some(delay) = self.inner.retry_policy.should_retry(&error, attempt)
+                        {
+                            debug!(delay = ?delay, attempt, "Retrying after error");
+                            tokio::time::sleep(delay).await;
+                            continue;
+                        }
+                    }
+
+                    return Err(error);
+                }
+            }
+        }
     }
 
     /// Makes an HTTP request with retry logic.

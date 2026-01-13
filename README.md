@@ -1,8 +1,11 @@
 # Anthropic SDK for Rust
 
-The official Rust SDK for the Anthropic API, providing access to Claude and other Anthropic models.
+[![Crates.io](https://img.shields.io/crates/v/anthropic.svg)](https://crates.io/crates/anthropic)
+[![Documentation](https://docs.rs/anthropic/badge.svg)](https://docs.rs/anthropic)
+[![CI](https://github.com/anthropics/anthropic-sdk-rust/actions/workflows/ci.yml/badge.svg)](https://github.com/anthropics/anthropic-sdk-rust/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **Note**: This SDK is currently under development. See [PLAN.md](./PLAN.md) for the implementation roadmap.
+The official Rust SDK for the Anthropic API, providing access to Claude and other Anthropic models.
 
 ## Features
 
@@ -10,9 +13,10 @@ The official Rust SDK for the Anthropic API, providing access to Claude and othe
 - Streaming responses with async iterators
 - Tool use (function calling)
 - Message batches for bulk processing
+- Extended thinking (beta)
 - AWS Bedrock integration
 - Google Vertex AI integration
-- Async-first design with runtime flexibility (tokio/async-std)
+- Async-first design with tokio
 
 ## Installation
 
@@ -27,20 +31,20 @@ tokio = { version = "1", features = ["full"] }
 For AWS Bedrock support:
 ```toml
 [dependencies]
-anthropic = { version = "0.1", features = ["bedrock"] }
+anthropic-bedrock = "0.1"
 ```
 
 For Google Vertex AI support:
 ```toml
 [dependencies]
-anthropic = { version = "0.1", features = ["vertex"] }
+anthropic-vertex = "0.1"
 ```
 
 ## Quick Start
 
 ```rust
 use anthropic::{Anthropic, Model};
-use anthropic::types::MessageCreateParams;
+use anthropic::types::{MessageCreateParams, MessageParam};
 
 #[tokio::main]
 async fn main() -> Result<(), anthropic::Error> {
@@ -48,16 +52,14 @@ async fn main() -> Result<(), anthropic::Error> {
     let client = Anthropic::new()?;
 
     let response = client.messages().create(
-        MessageCreateParams::builder()
-            .model(Model::CLAUDE_SONNET_4_5_LATEST)
-            .max_tokens(1024)
-            .messages(vec![
-                MessageParam::user("Hello, Claude!")
-            ])
-            .build()?
+        MessageCreateParams::new(
+            Model::claude_sonnet_4_5_latest(),
+            vec![MessageParam::user("Hello, Claude!")],
+            1024,
+        )
     ).await?;
 
-    println!("{}", response.content_text());
+    println!("{}", response.text());
     Ok(())
 }
 ```
@@ -65,51 +67,108 @@ async fn main() -> Result<(), anthropic::Error> {
 ## Streaming
 
 ```rust
+use anthropic::{Anthropic, Model};
+use anthropic::types::{MessageCreateParams, MessageParam};
+use anthropic::streaming::{StreamEvent, Delta};
 use futures::StreamExt;
 
-let mut stream = client.messages().stream(
-    MessageCreateParams::builder()
-        .model(Model::CLAUDE_SONNET_4_5_LATEST)
-        .max_tokens(1024)
-        .messages(vec![MessageParam::user("Write a haiku about Rust")])
-        .build()?
+#[tokio::main]
+async fn main() -> Result<(), anthropic::Error> {
+    let client = Anthropic::new()?;
+
+    let mut stream = client.messages().stream(
+        MessageCreateParams::new(
+            Model::claude_sonnet_4_5_latest(),
+            vec![MessageParam::user("Write a haiku about Rust")],
+            1024,
+        )
+    ).await?;
+
+    while let Some(event) = stream.next().await {
+        match event? {
+            StreamEvent::ContentBlockDelta { delta, .. } => {
+                if let Delta::TextDelta { text } = delta {
+                    print!("{}", text);
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+```
+
+## Tool Use
+
+```rust
+use anthropic::types::{Tool, ToolChoice};
+use serde_json::json;
+
+let calculator = Tool::new(
+    "calculator",
+    "Perform arithmetic calculations",
+    json!({
+        "type": "object",
+        "properties": {
+            "expression": {
+                "type": "string",
+                "description": "Math expression to evaluate"
+            }
+        },
+        "required": ["expression"]
+    }),
+);
+
+let response = client.messages().create(
+    MessageCreateParams::new(
+        Model::claude_sonnet_4_5_latest(),
+        vec![MessageParam::user("What is 42 * 17?")],
+        1024,
+    )
+    .with_tools(vec![calculator])
+    .with_tool_choice(ToolChoice::Auto)
 ).await?;
 
-while let Some(event) = stream.next().await {
-    match event? {
-        StreamEvent::ContentBlockDelta { delta, .. } => {
-            if let Delta::TextDelta { text } = delta {
-                print!("{}", text);
-            }
-        }
-        _ => {}
+// Handle tool use blocks in response.content
+for block in &response.content {
+    if let ContentBlock::ToolUse(tool_use) = block {
+        println!("Tool: {}, Input: {}", tool_use.name, tool_use.input);
     }
 }
 ```
 
 ## Crate Structure
 
-| Crate               | Description                                      |
-| ------------------- | ------------------------------------------------ |
-| `anthropic`         | Core SDK with Messages, Batches, and Models APIs |
-| `anthropic-bedrock` | AWS Bedrock integration                          |
-| `anthropic-vertex`  | Google Vertex AI integration                     |
+| Crate | Description |
+|-------|-------------|
+| [`anthropic`](https://crates.io/crates/anthropic) | Core SDK with Messages, Batches, and Models APIs |
+| [`anthropic-bedrock`](https://crates.io/crates/anthropic-bedrock) | AWS Bedrock integration |
+| [`anthropic-vertex`](https://crates.io/crates/anthropic-vertex) | Google Vertex AI integration |
 
-## Development Status
+## Feature Flags
 
-See [PLAN.md](./PLAN.md) for the detailed implementation plan and current progress.
+| Feature | Description |
+|---------|-------------|
+| `beta` | Enable beta APIs (Files, Skills, extended thinking) |
+| `rustls-tls` | Use rustls for TLS (default) |
+| `native-tls` | Use native TLS instead of rustls |
 
-### Phases
+## Examples
 
-- [ ] Phase 1: Core Infrastructure
-- [ ] Phase 2: Core Types
-- [ ] Phase 3: Messages API
-- [ ] Phase 4: Tool Use
-- [ ] Phase 5: Batches API
-- [ ] Phase 6: Models API
-- [ ] Phase 7: Beta Features
-- [ ] Phase 8: Cloud Integrations
-- [ ] Phase 9: Polish & Documentation
+See the [`examples/`](./examples) directory for more examples:
+
+- [`simple_message.rs`](./examples/simple_message.rs) - Basic message creation
+- [`streaming.rs`](./examples/streaming.rs) - Streaming responses
+- [`tool_use.rs`](./examples/tool_use.rs) - Function calling with tools
+- [`bedrock.rs`](./examples/bedrock.rs) - AWS Bedrock integration
+- [`vertex.rs`](./examples/vertex.rs) - Google Vertex AI integration
+- [`beta_files.rs`](./examples/beta_files.rs) - Beta Files API
+
+## Documentation
+
+- [API Documentation](https://docs.rs/anthropic)
+- [Anthropic API Reference](https://docs.anthropic.com/en/api)
+- [CHANGELOG](./CHANGELOG.md)
 
 ## License
 
@@ -117,4 +176,4 @@ MIT License - see [LICENSE](./LICENSE) for details.
 
 ## Contributing
 
-Contributions are welcome! Please see the development plan in [PLAN.md](./PLAN.md) before starting work.
+Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.

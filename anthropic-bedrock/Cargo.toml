@@ -13,30 +13,35 @@ categories = ["api-bindings", "asynchronous"]
 default = []
 
 [dependencies]
-# Core SDK
-# anthropic = { path = "../anthropic", default-features = false }
-
 # Serialization
 serde.workspace = true
 serde_json.workspace = true
 
-# AWS SDK
-# aws-config = "1.0"
-# aws-sdk-bedrockruntime = "1.0"
-# aws-sigv4 = "1.0"
-# aws-credential-types = "1.0"
+# HTTP
+reqwest.workspace = true
+http.workspace = true
 
 # Async
 futures.workspace = true
 tokio.workspace = true
 
+# Crypto (pure Rust - for AWS Signature V4)
+sha2.workspace = true
+hmac.workspace = true
+hex.workspace = true
+crc32fast.workspace = true
+
 # Utilities
 thiserror.workspace = true
 bytes.workspace = true
 tracing.workspace = true
+url.workspace = true
+chrono.workspace = true
+base64.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
+pretty_assertions = "1.4"
 
 [lints]
 workspace = true

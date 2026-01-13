@@ -35,6 +35,7 @@ full = ["bedrock", "vertex", "beta"]
 # Serialization
 serde.workspace = true
 serde_json.workspace = true
+serde_urlencoded.workspace = true
 
 # HTTP client
 reqwest.workspace = true
@@ -43,6 +44,7 @@ reqwest.workspace = true
 tokio = { workspace = true, optional = true }
 tokio-stream = { workspace = true, optional = true }
 futures.workspace = true
+futures-core.workspace = true
 
 # Utilities
 thiserror.workspace = true

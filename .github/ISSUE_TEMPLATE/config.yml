@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Anthropic Documentation
+    url: https://docs.anthropic.com/
+    about: Official Anthropic API documentation
+  - name: Discussions
+    url: https://github.com/anthropics/anthropic-sdk-rust/discussions
+    about: Ask questions and discuss the SDK

@@ -19,14 +19,16 @@ categories = ["api-bindings", "asynchronous"]
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+serde_urlencoded = "0.7"
 
 # HTTP client
-reqwest = { version = "0.12", default-features = false, features = ["json", "stream"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "multipart"] }
 
 # Async runtime
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 tokio-stream = "0.1"
 futures = "0.3"
+futures-core = "0.3"
 
 # Utilities
 thiserror = "2.0"
@@ -41,6 +43,26 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # Logging
 tracing = "0.1"
+
+# Crypto (pure Rust - for AWS Signature V4)
+sha2 = "0.10"
+hmac = "0.12"
+hex = "0.4"
+crc32fast = "1.4"
+
+# HTTP types
+http = "1.1"
+http-body-util = "0.1"
+
+# AWS SDK (for Bedrock integration)
+aws-config = { version = "1.0", features = ["behavior-version-latest"] }
+aws-credential-types = "1.0"
+aws-sigv4 = "1.0"
+aws-smithy-runtime-api = "1.0"
+aws-smithy-types = "1.0"
+
+# Google Cloud (for Vertex AI integration)
+# Note: We use pure Rust implementation for Vertex AI signing
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
