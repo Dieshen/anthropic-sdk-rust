@@ -68,7 +68,7 @@ anthropic-vertex = { path = "../anthropic-vertex", optional = true }
 tokio = { workspace = true, features = ["full", "test-util"] }
 wiremock = "0.6"
 pretty_assertions = "1.4"
-criterion = "0.5"
+criterion = "0.8"
 
 # Benchmarks will be added when streaming module is implemented
 # [[bench]]
