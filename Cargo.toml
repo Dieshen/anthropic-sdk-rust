@@ -46,7 +46,7 @@ tracing = "0.1"
 
 # Crypto (pure Rust - for AWS Signature V4)
 sha2 = "0.10"
-hmac = "0.12"
+hmac = "0.13"
 hex = "0.4"
 crc32fast = "1.4"
 
