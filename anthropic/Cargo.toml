@@ -61,8 +61,8 @@ chrono.workspace = true
 tracing.workspace = true
 
 # Cloud integrations (optional)
-anthropic-bedrock = { path = "../anthropic-bedrock", optional = true }
-anthropic-vertex = { path = "../anthropic-vertex", optional = true }
+anthropic-bedrock = { path = "../anthropic-bedrock", version = "0.1.0", optional = true }
+anthropic-vertex = { path = "../anthropic-vertex", version = "0.1.0", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }

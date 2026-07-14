@@ -5,7 +5,12 @@ members = ["anthropic", "anthropic-bedrock", "anthropic-vertex"]
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.75"
+# MEASURED, not aspirational. Was declared 1.75 for months while the MSRV job
+# never ran (the workflow triggered on a branch that does not exist). 1.75 was
+# never achievable: rand_core needs Cargo's edition2024 (1.85), icu_* needs 1.86,
+# time needs 1.88. No Cargo.lock is committed, so deps float and this floor can
+# rise on its own — re-measure with `cargo +<ver> check --all-features`, do not guess.
+rust-version = "1.88"
 license = "MIT"
 repository = "https://github.com/Dieshen/anthropic-sdk-rust"
 keywords = ["anthropic", "claude", "ai", "llm", "api"]

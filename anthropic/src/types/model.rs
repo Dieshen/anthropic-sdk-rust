@@ -34,20 +34,20 @@ impl Model {
 
     /// Claude Opus 4.5 - Latest version (2025-11-01)
     #[must_use]
-    pub fn claude_opus_4_5_20251101() -> Self {
-        Model(Cow::Borrowed("claude-opus-4-5-20251101"))
+    pub const fn claude_opus_4_5_20251101() -> Self {
+        Self(Cow::Borrowed("claude-opus-4-5-20251101"))
     }
 
     /// Claude Opus 4.5 - Latest alias
     #[must_use]
-    pub fn claude_opus_4_5_latest() -> Self {
-        Model(Cow::Borrowed("claude-opus-4-5-latest"))
+    pub const fn claude_opus_4_5_latest() -> Self {
+        Self(Cow::Borrowed("claude-opus-4-5-latest"))
     }
 
     /// Claude Opus 4.5 - Short alias
     #[must_use]
-    pub fn claude_opus_4_5() -> Self {
-        Model(Cow::Borrowed("claude-opus-4-5"))
+    pub const fn claude_opus_4_5() -> Self {
+        Self(Cow::Borrowed("claude-opus-4-5"))
     }
 
     // =========================================================================
@@ -56,20 +56,20 @@ impl Model {
 
     /// Claude Sonnet 4.5 - Latest version (2025-09-29)
     #[must_use]
-    pub fn claude_sonnet_4_5_20250929() -> Self {
-        Model(Cow::Borrowed("claude-sonnet-4-5-20250929"))
+    pub const fn claude_sonnet_4_5_20250929() -> Self {
+        Self(Cow::Borrowed("claude-sonnet-4-5-20250929"))
     }
 
     /// Claude Sonnet 4.5 - Latest alias
     #[must_use]
-    pub fn claude_sonnet_4_5_latest() -> Self {
-        Model(Cow::Borrowed("claude-sonnet-4-5-latest"))
+    pub const fn claude_sonnet_4_5_latest() -> Self {
+        Self(Cow::Borrowed("claude-sonnet-4-5-latest"))
     }
 
     /// Claude Sonnet 4.5 - Short alias
     #[must_use]
-    pub fn claude_sonnet_4_5() -> Self {
-        Model(Cow::Borrowed("claude-sonnet-4-5"))
+    pub const fn claude_sonnet_4_5() -> Self {
+        Self(Cow::Borrowed("claude-sonnet-4-5"))
     }
 
     // =========================================================================
@@ -78,20 +78,20 @@ impl Model {
 
     /// Claude Sonnet 4 - Version 2025-05-14
     #[must_use]
-    pub fn claude_sonnet_4_20250514() -> Self {
-        Model(Cow::Borrowed("claude-sonnet-4-20250514"))
+    pub const fn claude_sonnet_4_20250514() -> Self {
+        Self(Cow::Borrowed("claude-sonnet-4-20250514"))
     }
 
     /// Claude Sonnet 4 - Latest alias
     #[must_use]
-    pub fn claude_sonnet_4_latest() -> Self {
-        Model(Cow::Borrowed("claude-sonnet-4-latest"))
+    pub const fn claude_sonnet_4_latest() -> Self {
+        Self(Cow::Borrowed("claude-sonnet-4-latest"))
     }
 
     /// Claude Sonnet 4 - Short alias
     #[must_use]
-    pub fn claude_sonnet_4() -> Self {
-        Model(Cow::Borrowed("claude-sonnet-4-0"))
+    pub const fn claude_sonnet_4() -> Self {
+        Self(Cow::Borrowed("claude-sonnet-4-0"))
     }
 
     // =========================================================================
@@ -100,20 +100,20 @@ impl Model {
 
     /// Claude Opus 4 - Version 2025-05-14
     #[must_use]
-    pub fn claude_opus_4_20250514() -> Self {
-        Model(Cow::Borrowed("claude-opus-4-20250514"))
+    pub const fn claude_opus_4_20250514() -> Self {
+        Self(Cow::Borrowed("claude-opus-4-20250514"))
     }
 
     /// Claude Opus 4 - Latest alias
     #[must_use]
-    pub fn claude_opus_4_latest() -> Self {
-        Model(Cow::Borrowed("claude-opus-4-latest"))
+    pub const fn claude_opus_4_latest() -> Self {
+        Self(Cow::Borrowed("claude-opus-4-latest"))
     }
 
     /// Claude Opus 4 - Short alias
     #[must_use]
-    pub fn claude_opus_4() -> Self {
-        Model(Cow::Borrowed("claude-opus-4-0"))
+    pub const fn claude_opus_4() -> Self {
+        Self(Cow::Borrowed("claude-opus-4-0"))
     }
 
     // =========================================================================
@@ -122,20 +122,20 @@ impl Model {
 
     /// Claude Haiku 4.5 - Version 2025-10-01
     #[must_use]
-    pub fn claude_haiku_4_5_20251001() -> Self {
-        Model(Cow::Borrowed("claude-haiku-4-5-20251001"))
+    pub const fn claude_haiku_4_5_20251001() -> Self {
+        Self(Cow::Borrowed("claude-haiku-4-5-20251001"))
     }
 
     /// Claude Haiku 4.5 - Latest alias
     #[must_use]
-    pub fn claude_haiku_4_5_latest() -> Self {
-        Model(Cow::Borrowed("claude-haiku-4-5-latest"))
+    pub const fn claude_haiku_4_5_latest() -> Self {
+        Self(Cow::Borrowed("claude-haiku-4-5-latest"))
     }
 
     /// Claude Haiku 4.5 - Short alias
     #[must_use]
-    pub fn claude_haiku_4_5() -> Self {
-        Model(Cow::Borrowed("claude-haiku-4-5"))
+    pub const fn claude_haiku_4_5() -> Self {
+        Self(Cow::Borrowed("claude-haiku-4-5"))
     }
 
     // =========================================================================
@@ -144,32 +144,32 @@ impl Model {
 
     /// Claude 3.5 Sonnet - Version 2024-10-22
     #[must_use]
-    pub fn claude_3_5_sonnet_20241022() -> Self {
-        Model(Cow::Borrowed("claude-3-5-sonnet-20241022"))
+    pub const fn claude_3_5_sonnet_20241022() -> Self {
+        Self(Cow::Borrowed("claude-3-5-sonnet-20241022"))
     }
 
     /// Claude 3.5 Sonnet - Version 2024-06-20
     #[must_use]
-    pub fn claude_3_5_sonnet_20240620() -> Self {
-        Model(Cow::Borrowed("claude-3-5-sonnet-20240620"))
+    pub const fn claude_3_5_sonnet_20240620() -> Self {
+        Self(Cow::Borrowed("claude-3-5-sonnet-20240620"))
     }
 
     /// Claude 3.5 Sonnet - Latest alias
     #[must_use]
-    pub fn claude_3_5_sonnet_latest() -> Self {
-        Model(Cow::Borrowed("claude-3-5-sonnet-latest"))
+    pub const fn claude_3_5_sonnet_latest() -> Self {
+        Self(Cow::Borrowed("claude-3-5-sonnet-latest"))
     }
 
     /// Claude 3.5 Haiku - Version 2024-10-22
     #[must_use]
-    pub fn claude_3_5_haiku_20241022() -> Self {
-        Model(Cow::Borrowed("claude-3-5-haiku-20241022"))
+    pub const fn claude_3_5_haiku_20241022() -> Self {
+        Self(Cow::Borrowed("claude-3-5-haiku-20241022"))
     }
 
     /// Claude 3.5 Haiku - Latest alias
     #[must_use]
-    pub fn claude_3_5_haiku_latest() -> Self {
-        Model(Cow::Borrowed("claude-3-5-haiku-latest"))
+    pub const fn claude_3_5_haiku_latest() -> Self {
+        Self(Cow::Borrowed("claude-3-5-haiku-latest"))
     }
 
     // =========================================================================
@@ -178,26 +178,26 @@ impl Model {
 
     /// Claude 3 Opus - Version 2024-02-29
     #[must_use]
-    pub fn claude_3_opus_20240229() -> Self {
-        Model(Cow::Borrowed("claude-3-opus-20240229"))
+    pub const fn claude_3_opus_20240229() -> Self {
+        Self(Cow::Borrowed("claude-3-opus-20240229"))
     }
 
     /// Claude 3 Opus - Latest alias
     #[must_use]
-    pub fn claude_3_opus_latest() -> Self {
-        Model(Cow::Borrowed("claude-3-opus-latest"))
+    pub const fn claude_3_opus_latest() -> Self {
+        Self(Cow::Borrowed("claude-3-opus-latest"))
     }
 
     /// Claude 3 Sonnet - Version 2024-02-29
     #[must_use]
-    pub fn claude_3_sonnet_20240229() -> Self {
-        Model(Cow::Borrowed("claude-3-sonnet-20240229"))
+    pub const fn claude_3_sonnet_20240229() -> Self {
+        Self(Cow::Borrowed("claude-3-sonnet-20240229"))
     }
 
     /// Claude 3 Haiku - Version 2024-03-07
     #[must_use]
-    pub fn claude_3_haiku_20240307() -> Self {
-        Model(Cow::Borrowed("claude-3-haiku-20240307"))
+    pub const fn claude_3_haiku_20240307() -> Self {
+        Self(Cow::Borrowed("claude-3-haiku-20240307"))
     }
 
     // =========================================================================
@@ -220,13 +220,13 @@ impl Model {
     /// Creates a new model from a string.
     #[must_use]
     pub fn new(s: impl Into<String>) -> Self {
-        Model(Cow::Owned(s.into()))
+        Self(Cow::Owned(s.into()))
     }
 
     /// Creates a model from a static string.
     #[must_use]
-    pub fn from_static(s: &'static str) -> Self {
-        Model(Cow::Borrowed(s))
+    pub const fn from_static(s: &'static str) -> Self {
+        Self(Cow::Borrowed(s))
     }
 
     /// Returns the model identifier as a string slice.
@@ -250,13 +250,13 @@ impl fmt::Display for Model {
 
 impl From<&str> for Model {
     fn from(s: &str) -> Self {
-        Model(Cow::Owned(s.to_string()))
+        Self(Cow::Owned(s.to_string()))
     }
 }
 
 impl From<String> for Model {
     fn from(s: String) -> Self {
-        Model(Cow::Owned(s))
+        Self(Cow::Owned(s))
     }
 }
 

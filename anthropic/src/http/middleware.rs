@@ -81,7 +81,10 @@ impl std::fmt::Debug for Next<'_> {
 impl<'a> Next<'a> {
     /// Creates a new Next with the given middlewares.
     pub(crate) fn new(middlewares: &'a [Arc<dyn Middleware>], client: &'a Client) -> Self {
-        Self { middlewares, client }
+        Self {
+            middlewares,
+            client,
+        }
     }
 
     /// Calls the next middleware in the chain or executes the request.
@@ -146,6 +149,13 @@ impl MiddlewareStack {
     }
 
     /// Executes a request through the middleware stack.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any middleware in the stack returns an error (for
+    /// example, [`RetryMiddleware`] after exhausting its retry budget), or if
+    /// the underlying HTTP request itself fails (connection error, timeout,
+    /// etc.) once it reaches the end of the chain.
     pub async fn execute(&self, client: &Client, request: Request) -> Result<Response> {
         let next = Next::new(&self.middlewares, client);
         next.run(request).await
@@ -195,7 +205,7 @@ impl LoggingMiddleware {
     ///
     /// **Warning**: Headers may contain sensitive data like API keys.
     #[must_use]
-    pub fn with_headers(mut self) -> Self {
+    pub const fn with_headers(mut self) -> Self {
         self.log_headers = true;
         self
     }
@@ -204,7 +214,7 @@ impl LoggingMiddleware {
     ///
     /// **Warning**: Bodies may be large and impact performance.
     #[must_use]
-    pub fn with_bodies(mut self) -> Self {
+    pub const fn with_bodies(mut self) -> Self {
         self.log_bodies = true;
         self
     }
@@ -284,7 +294,7 @@ pub struct RetryMiddleware<P: RetryPolicy = ExponentialBackoff> {
 impl RetryMiddleware<ExponentialBackoff> {
     /// Creates a new retry middleware with the given configuration.
     #[must_use]
-    pub fn new(config: RetryConfig) -> Self {
+    pub const fn new(config: RetryConfig) -> Self {
         Self {
             policy: ExponentialBackoff::new(config),
         }
@@ -294,7 +304,7 @@ impl RetryMiddleware<ExponentialBackoff> {
 impl<P: RetryPolicy> RetryMiddleware<P> {
     /// Creates a new retry middleware with a custom policy.
     #[must_use]
-    pub fn with_policy(policy: P) -> Self {
+    pub const fn with_policy(policy: P) -> Self {
         Self { policy }
     }
 }
@@ -320,7 +330,10 @@ impl<P: RetryPolicy + Clone + 'static> Middleware for RetryMiddleware<P> {
             let method = request.method().clone();
             let url = request.url().clone();
             let headers = request.headers().clone();
-            let body = request.body().and_then(|b| b.as_bytes()).map(|b| b.to_vec());
+            let body = request
+                .body()
+                .and_then(|b| b.as_bytes())
+                .map(<[u8]>::to_vec);
 
             let mut attempt = 0u32;
 
@@ -328,7 +341,9 @@ impl<P: RetryPolicy + Clone + 'static> Middleware for RetryMiddleware<P> {
                 attempt += 1;
 
                 // Rebuild the request for each attempt
-                let mut builder = client.request(method.clone(), url.clone()).headers(headers.clone());
+                let mut builder = client
+                    .request(method.clone(), url.clone())
+                    .headers(headers.clone());
                 if let Some(ref body_bytes) = body {
                     builder = builder.body(body_bytes.clone());
                 }
@@ -348,9 +363,12 @@ impl<P: RetryPolicy + Clone + 'static> Middleware for RetryMiddleware<P> {
                         }
 
                         // For error responses, we need to check if they're retryable
-                        if status.is_server_error() || status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                        if status.is_server_error()
+                            || status == reqwest::StatusCode::TOO_MANY_REQUESTS
+                        {
                             // Get retry delay from response headers
-                            let retry_after = crate::http::response::parse_retry_after(response.headers());
+                            let retry_after =
+                                crate::http::response::parse_retry_after(response.headers());
 
                             // Create an error to check retry policy
                             let error = Error::RateLimited {
@@ -440,7 +458,7 @@ impl HeaderMiddleware {
 
     /// Creates a header middleware with the given headers.
     #[must_use]
-    pub fn with_headers(headers: HeaderMap) -> Self {
+    pub const fn with_headers(headers: HeaderMap) -> Self {
         Self { headers }
     }
 
@@ -502,7 +520,7 @@ impl Middleware for HeaderMiddleware {
 #[derive(Debug, Clone, Default)]
 pub struct TimingMiddleware {
     /// Optional callback to receive timing information.
-    /// Using Option<Arc<dyn Fn>> instead of a direct callback for Clone support.
+    /// Using `Option<Arc<dyn Fn>>` instead of a direct callback for Clone support.
     _marker: std::marker::PhantomData<()>,
 }
 
@@ -529,10 +547,10 @@ impl Middleware for TimingMiddleware {
             let result: Result<Response> = next.run(request).await;
             let duration = start.elapsed();
 
-            let status = match &result {
-                Ok(response) => response.status().as_u16().to_string(),
-                Err(_) => "error".to_string(),
-            };
+            let status = result.as_ref().map_or_else(
+                |_| "error".to_string(),
+                |response| response.status().as_u16().to_string(),
+            );
 
             tracing::info!(
                 method = method,
@@ -590,9 +608,7 @@ mod tests {
 
     #[test]
     fn test_logging_middleware_configuration() {
-        let middleware = LoggingMiddleware::new()
-            .with_headers()
-            .with_bodies();
+        let middleware = LoggingMiddleware::new().with_headers().with_bodies();
 
         assert!(middleware.log_headers);
         assert!(middleware.log_bodies);
@@ -606,9 +622,7 @@ mod tests {
 
     #[test]
     fn test_retry_middleware_custom_config() {
-        let config = RetryConfig::builder()
-            .max_retries(5)
-            .build();
+        let config = RetryConfig::builder().max_retries(5).build();
         let middleware = RetryMiddleware::new(config);
         assert_eq!(middleware.policy.config().max_retries, 5);
     }

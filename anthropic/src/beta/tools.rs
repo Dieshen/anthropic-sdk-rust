@@ -1,9 +1,9 @@
 //! Beta tool definitions for the Anthropic API.
 //!
 //! This module defines beta server-side tools including:
-//! - Web Search (web_search_20250305)
-//! - Computer Use tools (bash_20250124, text_editor_20250124, computer_20250124)
-//! - Code Execution (code_execution_20250522)
+//! - Web Search (`web_search_20250305`)
+//! - Computer Use tools (`bash_20250124`, `text_editor_20250124`, `computer_20250124`)
+//! - Code Execution (`code_execution_20250522`)
 
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +17,7 @@ use crate::types::shared::CacheControl;
 ///
 /// This includes both client-defined tools and server-side tools like
 /// web search and computer use.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum BetaToolUnion {
     /// Custom user-defined tool.
@@ -39,7 +39,7 @@ impl From<BetaTool> for BetaToolUnion {
 }
 
 /// Custom tool parameter definition.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BetaToolParam {
     /// Name of the tool.
     pub name: String,
@@ -57,7 +57,7 @@ pub struct BetaToolParam {
 }
 
 /// JSON Schema for beta tool input parameters.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BetaToolInputSchema {
     /// Schema type (always "object").
     #[serde(rename = "type")]
@@ -92,7 +92,7 @@ impl Default for BetaToolInputSchema {
 // =============================================================================
 
 /// Server-side beta tool definitions.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum BetaTool {
     /// Web search tool (2025-03-05 version).
@@ -133,9 +133,9 @@ pub enum BetaTool {
 ///     .with_max_uses(5)
 ///     .with_allowed_domains(vec!["example.com".to_string()]);
 /// ```
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebSearchTool20250305 {
-    /// Name of the tool (always "web_search").
+    /// Name of the tool (always "`web_search`").
     #[serde(default = "default_web_search_name")]
     pub name: String,
 
@@ -175,7 +175,7 @@ impl WebSearchTool20250305 {
 
     /// Sets the maximum number of search queries.
     #[must_use]
-    pub fn with_max_uses(mut self, max_uses: i64) -> Self {
+    pub const fn with_max_uses(mut self, max_uses: i64) -> Self {
         self.max_uses = Some(max_uses);
         self
     }
@@ -205,14 +205,14 @@ impl WebSearchTool20250305 {
 
     /// Sets cache control for this tool.
     #[must_use]
-    pub fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
+    pub const fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
         self.cache_control = Some(cache_control);
         self
     }
 }
 
 /// User location for web search context.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebSearchUserLocation {
     /// Location type (always "approximate").
     #[serde(rename = "type", default = "default_approximate")]
@@ -230,7 +230,7 @@ pub struct WebSearchUserLocation {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
 
-    /// Timezone (IANA format, e.g., "America/New_York").
+    /// Timezone (IANA format, e.g., "`America/New_York`").
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timezone: Option<String>,
 }
@@ -286,9 +286,9 @@ impl WebSearchUserLocation {
 // =============================================================================
 
 /// Web search tool result block.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebSearchToolResultBlock {
-    /// Type of block (always "web_search_tool_result").
+    /// Type of block (always "`web_search_tool_result`").
     #[serde(rename = "type")]
     pub block_type: String,
 
@@ -300,7 +300,7 @@ pub struct WebSearchToolResultBlock {
 }
 
 /// Content of a web search tool result.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WebSearchToolResultContent {
     /// Successful search results.
@@ -310,9 +310,9 @@ pub enum WebSearchToolResultContent {
 }
 
 /// Individual web search result.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebSearchResultBlock {
-    /// Type of block (always "web_search_result").
+    /// Type of block (always "`web_search_result`").
     #[serde(rename = "type", default = "default_web_search_result")]
     pub block_type: String,
 
@@ -340,7 +340,7 @@ fn default_web_search_result() -> String {
 }
 
 /// Content block within a web search result.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WebSearchContentBlock {
     /// Text content from the page.
@@ -351,9 +351,9 @@ pub enum WebSearchContentBlock {
 }
 
 /// Error from web search tool.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebSearchToolResultError {
-    /// Type (always "web_search_tool_result_error").
+    /// Type (always "`web_search_tool_result_error`").
     #[serde(rename = "type")]
     pub error_type: String,
 
@@ -384,7 +384,7 @@ pub enum WebSearchToolResultErrorCode {
 /// Bash tool for computer use (2025-01-24 version).
 ///
 /// Allows Claude to execute bash commands in a controlled environment.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BashTool20250124 {
     /// Name of the tool (always "bash").
     #[serde(default = "default_bash_name")]
@@ -417,7 +417,7 @@ impl BashTool20250124 {
 
     /// Sets cache control for this tool.
     #[must_use]
-    pub fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
+    pub const fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
         self.cache_control = Some(cache_control);
         self
     }
@@ -425,10 +425,10 @@ impl BashTool20250124 {
 
 /// Text editor tool for computer use (2025-01-24 version).
 ///
-/// Allows Claude to view and edit text files using a str_replace_editor.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// Allows Claude to view and edit text files using a `str_replace_editor`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TextEditorTool20250124 {
-    /// Name of the tool (always "str_replace_editor").
+    /// Name of the tool (always "`str_replace_editor`").
     #[serde(default = "default_text_editor_name")]
     pub name: String,
 
@@ -459,7 +459,7 @@ impl TextEditorTool20250124 {
 
     /// Sets cache control for this tool.
     #[must_use]
-    pub fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
+    pub const fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
         self.cache_control = Some(cache_control);
         self
     }
@@ -468,7 +468,7 @@ impl TextEditorTool20250124 {
 /// Computer control tool for computer use (2025-01-24 version).
 ///
 /// Allows Claude to control a computer's mouse and keyboard.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ComputerTool20250124 {
     /// Name of the tool (always "computer").
     #[serde(default = "default_computer_name")]
@@ -508,14 +508,14 @@ impl ComputerTool20250124 {
 
     /// Sets the display number for multi-monitor setups.
     #[must_use]
-    pub fn with_display_number(mut self, display_number: i64) -> Self {
+    pub const fn with_display_number(mut self, display_number: i64) -> Self {
         self.display_number = Some(display_number);
         self
     }
 
     /// Sets cache control for this tool.
     #[must_use]
-    pub fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
+    pub const fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
         self.cache_control = Some(cache_control);
         self
     }
@@ -528,9 +528,9 @@ impl ComputerTool20250124 {
 /// Code execution tool (2025-05-22 version).
 ///
 /// Allows Claude to execute code in a sandboxed environment.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CodeExecutionTool {
-    /// Name of the tool (always "code_execution").
+    /// Name of the tool (always "`code_execution`").
     #[serde(default = "default_code_execution_name")]
     pub name: String,
 
@@ -561,16 +561,16 @@ impl CodeExecutionTool {
 
     /// Sets cache control for this tool.
     #[must_use]
-    pub fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
+    pub const fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
         self.cache_control = Some(cache_control);
         self
     }
 }
 
 /// Code execution result block.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CodeExecutionResultBlock {
-    /// Type (always "code_execution_result").
+    /// Type (always "`code_execution_result`").
     #[serde(rename = "type")]
     pub block_type: String,
 
@@ -589,9 +589,9 @@ pub struct CodeExecutionResultBlock {
 }
 
 /// Output block from code execution.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CodeExecutionOutputBlock {
-    /// Type (always "code_execution_output").
+    /// Type (always "`code_execution_output`").
     #[serde(rename = "type")]
     pub block_type: String,
 
@@ -694,7 +694,7 @@ mod tests {
 
         match union {
             BetaToolUnion::Server(_) => (),
-            _ => panic!("Expected Server variant"),
+            BetaToolUnion::Custom(_) => panic!("Expected Server variant"),
         }
     }
 

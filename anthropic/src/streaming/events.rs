@@ -7,8 +7,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    ContentBlock, Message, ServerToolUseBlock, StopReason, TextBlock, ThinkingBlock,
-    ToolUseBlock, WebSearchToolResultBlock,
+    ContentBlock, Message, ServerToolUseBlock, StopReason, TextBlock, ThinkingBlock, ToolUseBlock,
+    WebSearchToolResultBlock,
 };
 
 // =============================================================================
@@ -19,7 +19,7 @@ use crate::types::{
 ///
 /// Events are delivered in order and represent the progressive construction
 /// of a message response.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum StreamEvent {
     /// Start of a new message.
@@ -91,31 +91,31 @@ pub enum StreamEvent {
 impl StreamEvent {
     /// Returns true if this is a message start event.
     #[must_use]
-    pub fn is_message_start(&self) -> bool {
+    pub const fn is_message_start(&self) -> bool {
         matches!(self, Self::MessageStart { .. })
     }
 
     /// Returns true if this is a content block delta event.
     #[must_use]
-    pub fn is_content_delta(&self) -> bool {
+    pub const fn is_content_delta(&self) -> bool {
         matches!(self, Self::ContentBlockDelta { .. })
     }
 
     /// Returns true if this is a message stop event.
     #[must_use]
-    pub fn is_message_stop(&self) -> bool {
+    pub const fn is_message_stop(&self) -> bool {
         matches!(self, Self::MessageStop)
     }
 
     /// Returns true if this is a ping event.
     #[must_use]
-    pub fn is_ping(&self) -> bool {
+    pub const fn is_ping(&self) -> bool {
         matches!(self, Self::Ping)
     }
 
     /// Returns true if this is an error event.
     #[must_use]
-    pub fn is_error(&self) -> bool {
+    pub const fn is_error(&self) -> bool {
         matches!(self, Self::Error { .. })
     }
 
@@ -145,7 +145,7 @@ impl StreamEvent {
 
     /// Returns the block index if this event is associated with a content block.
     #[must_use]
-    pub fn block_index(&self) -> Option<u32> {
+    pub const fn block_index(&self) -> Option<u32> {
         match self {
             Self::ContentBlockStart { index, .. }
             | Self::ContentBlockDelta { index, .. }
@@ -159,10 +159,10 @@ impl StreamEvent {
 // Content Block Start Content
 // =============================================================================
 
-/// Initial content block in a content_block_start event.
+/// Initial content block in a `content_block_start` event.
 ///
 /// The content is typically empty or partial at this point.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlockStartContent {
     /// Text block (initially empty).
@@ -213,7 +213,7 @@ pub enum ContentBlockStartContent {
 }
 
 impl ContentBlockStartContent {
-    /// Converts this start content into a full ContentBlock.
+    /// Converts this start content into a full `ContentBlock`.
     ///
     /// The resulting block will have initial/empty content.
     #[must_use]
@@ -227,20 +227,23 @@ impl ContentBlockStartContent {
                 thinking,
                 signature: None,
             }),
-            Self::ToolUse { id, name, input } => ContentBlock::ToolUse(ToolUseBlock { id, name, input }),
+            Self::ToolUse { id, name, input } => {
+                ContentBlock::ToolUse(ToolUseBlock { id, name, input })
+            }
             Self::ServerToolUse { id, name, input } => {
                 ContentBlock::ServerToolUse(ServerToolUseBlock { id, name, input })
             }
-            Self::WebSearchToolResult { tool_use_id, content } => {
-                ContentBlock::WebSearchToolResult(WebSearchToolResultBlock {
-                    tool_use_id,
-                    content: serde_json::from_value(content).unwrap_or_else(|_| {
-                        crate::types::WebSearchResultContent::Error {
-                            error: "Failed to parse content".to_string(),
-                        }
-                    }),
-                })
-            }
+            Self::WebSearchToolResult {
+                tool_use_id,
+                content,
+            } => ContentBlock::WebSearchToolResult(WebSearchToolResultBlock {
+                tool_use_id,
+                content: serde_json::from_value(content).unwrap_or_else(|_| {
+                    crate::types::WebSearchResultContent::Error {
+                        error: "Failed to parse content".to_string(),
+                    }
+                }),
+            }),
             Self::RedactedThinking { data } => {
                 ContentBlock::RedactedThinking(crate::types::RedactedThinkingBlock { data })
             }
@@ -249,19 +252,19 @@ impl ContentBlockStartContent {
 
     /// Returns true if this is a text block.
     #[must_use]
-    pub fn is_text(&self) -> bool {
+    pub const fn is_text(&self) -> bool {
         matches!(self, Self::Text { .. })
     }
 
     /// Returns true if this is a tool use block.
     #[must_use]
-    pub fn is_tool_use(&self) -> bool {
+    pub const fn is_tool_use(&self) -> bool {
         matches!(self, Self::ToolUse { .. })
     }
 
     /// Returns true if this is a thinking block.
     #[must_use]
-    pub fn is_thinking(&self) -> bool {
+    pub const fn is_thinking(&self) -> bool {
         matches!(self, Self::Thinking { .. })
     }
 }
@@ -273,7 +276,7 @@ impl ContentBlockStartContent {
 /// Incremental update to a content block.
 ///
 /// These deltas are appended to the content block at the corresponding index.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlockDelta {
     /// Incremental text content.
@@ -340,19 +343,19 @@ impl ContentBlockDelta {
 
     /// Returns true if this is a text delta.
     #[must_use]
-    pub fn is_text(&self) -> bool {
+    pub const fn is_text(&self) -> bool {
         matches!(self, Self::TextDelta { .. })
     }
 
     /// Returns true if this is a thinking delta.
     #[must_use]
-    pub fn is_thinking(&self) -> bool {
+    pub const fn is_thinking(&self) -> bool {
         matches!(self, Self::ThinkingDelta { .. })
     }
 
     /// Returns true if this is an input JSON delta.
     #[must_use]
-    pub fn is_input_json(&self) -> bool {
+    pub const fn is_input_json(&self) -> bool {
         matches!(self, Self::InputJsonDelta { .. })
     }
 }
@@ -361,8 +364,8 @@ impl ContentBlockDelta {
 // Message Delta
 // =============================================================================
 
-/// Final message updates in a message_delta event.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// Final message updates in a `message_delta` event.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessageDelta {
     /// The reason generation stopped.
     pub stop_reason: Option<StopReason>,
@@ -376,7 +379,7 @@ pub struct MessageDelta {
 // Message Delta Usage
 // =============================================================================
 
-/// Usage statistics in a message_delta event.
+/// Usage statistics in a `message_delta` event.
 ///
 /// Contains the final output token count.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -393,15 +396,19 @@ pub struct MessageDeltaUsage {
     pub cache_read_input_tokens: i64,
 }
 
-/// Helper function for serde skip_serializing_if
-fn is_zero(val: &i64) -> bool {
+/// Helper function for serde `skip_serializing_if`
+// serde's `skip_serializing_if = "..."` invokes this as `fn(&T) -> bool`, so
+// the by-reference signature is required by the calling convention, not a
+// style choice; taking `i64` by value would not compile as a callback here.
+#[allow(clippy::trivially_copy_pass_by_ref)]
+const fn is_zero(val: &i64) -> bool {
     *val == 0
 }
 
 impl MessageDeltaUsage {
     /// Creates a new usage with the given output token count.
     #[must_use]
-    pub fn new(output_tokens: i64) -> Self {
+    pub const fn new(output_tokens: i64) -> Self {
         Self {
             output_tokens,
             cache_creation_input_tokens: 0,
@@ -437,42 +444,42 @@ impl std::error::Error for StreamError {}
 // Raw Event Types (for JSON parsing)
 // =============================================================================
 
-/// Raw message_start event from JSON.
+/// Raw `message_start` event from JSON.
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct RawMessageStartEvent {
+pub(super) struct RawMessageStartEvent {
     pub message: Message,
 }
 
-/// Raw content_block_start event from JSON.
+/// Raw `content_block_start` event from JSON.
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct RawContentBlockStartEvent {
+pub(super) struct RawContentBlockStartEvent {
     pub index: u32,
     pub content_block: ContentBlockStartContent,
 }
 
-/// Raw content_block_delta event from JSON.
+/// Raw `content_block_delta` event from JSON.
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct RawContentBlockDeltaEvent {
+pub(super) struct RawContentBlockDeltaEvent {
     pub index: u32,
     pub delta: ContentBlockDelta,
 }
 
-/// Raw content_block_stop event from JSON.
+/// Raw `content_block_stop` event from JSON.
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct RawContentBlockStopEvent {
+pub(super) struct RawContentBlockStopEvent {
     pub index: u32,
 }
 
-/// Raw message_delta event from JSON.
+/// Raw `message_delta` event from JSON.
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct RawMessageDeltaEvent {
+pub(super) struct RawMessageDeltaEvent {
     pub delta: MessageDelta,
     pub usage: MessageDeltaUsage,
 }
 
 /// Raw error event from JSON.
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct RawErrorEvent {
+pub(super) struct RawErrorEvent {
     pub error: StreamError,
 }
 
@@ -515,7 +522,10 @@ mod tests {
 
         let event: StreamEvent = serde_json::from_str(json).unwrap();
         match event {
-            StreamEvent::ContentBlockStart { index, content_block } => {
+            StreamEvent::ContentBlockStart {
+                index,
+                content_block,
+            } => {
                 assert_eq!(index, 0);
                 assert!(content_block.is_text());
             }
@@ -538,7 +548,10 @@ mod tests {
 
         let event: StreamEvent = serde_json::from_str(json).unwrap();
         match event {
-            StreamEvent::ContentBlockStart { index, content_block } => {
+            StreamEvent::ContentBlockStart {
+                index,
+                content_block,
+            } => {
                 assert_eq!(index, 1);
                 assert!(content_block.is_tool_use());
             }
@@ -597,7 +610,10 @@ mod tests {
         }"#;
 
         let event: StreamEvent = serde_json::from_str(json).unwrap();
-        assert_eq!(event.as_thinking_delta(), Some("Let me think about this..."));
+        assert_eq!(
+            event.as_thinking_delta(),
+            Some("Let me think about this...")
+        );
     }
 
     #[test]

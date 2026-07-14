@@ -104,7 +104,7 @@ pub struct DeletedSkill {
     /// ID of the deleted skill.
     pub id: String,
 
-    /// Object type (always "skill_deleted").
+    /// Object type (always "`skill_deleted`").
     #[serde(rename = "type")]
     pub deleted_type: String,
 }
@@ -119,7 +119,7 @@ pub struct SkillVersion {
     /// Version number (Unix epoch timestamp).
     pub version: u64,
 
-    /// Object type (always "skill_version").
+    /// Object type (always "`skill_version`").
     #[serde(rename = "type")]
     pub version_type: String,
 
@@ -147,7 +147,7 @@ pub struct DeletedSkillVersion {
     /// Version number that was deleted.
     pub version: u64,
 
-    /// Object type (always "skill_version_deleted").
+    /// Object type (always "`skill_version_deleted`").
     #[serde(rename = "type")]
     pub deleted_type: String,
 }
@@ -181,7 +181,7 @@ impl SkillsListParams {
 
     /// Sets the maximum number of skills to return.
     #[must_use]
-    pub fn with_limit(mut self, limit: u32) -> Self {
+    pub const fn with_limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
         self
     }
@@ -195,14 +195,14 @@ impl SkillsListParams {
 
     /// Filters to only custom skills.
     #[must_use]
-    pub fn custom_only(mut self) -> Self {
+    pub const fn custom_only(mut self) -> Self {
         self.skill_type = Some(SkillType::Custom);
         self
     }
 
     /// Filters to only Anthropic-provided skills.
     #[must_use]
-    pub fn anthropic_only(mut self) -> Self {
+    pub const fn anthropic_only(mut self) -> Self {
         self.skill_type = Some(SkillType::Anthropic);
         self
     }
@@ -231,9 +231,9 @@ impl SkillsListResponse {
     #[must_use]
     pub fn next_page_params(&self) -> Option<SkillsListParams> {
         if self.has_more {
-            self.last_id.as_ref().map(|id| {
-                SkillsListParams::new().with_after_id(id.clone())
-            })
+            self.last_id
+                .as_ref()
+                .map(|id| SkillsListParams::new().with_after_id(id.clone()))
         } else {
             None
         }
@@ -261,14 +261,14 @@ impl VersionsListParams {
 
     /// Sets the maximum number of versions to return.
     #[must_use]
-    pub fn with_limit(mut self, limit: u32) -> Self {
+    pub const fn with_limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
         self
     }
 
     /// Sets the pagination cursor.
     #[must_use]
-    pub fn with_after_version(mut self, version: u64) -> Self {
+    pub const fn with_after_version(mut self, version: u64) -> Self {
         self.after_version = Some(version);
         self
     }
@@ -393,7 +393,7 @@ pub(crate) struct SkillsClient {
 
 impl SkillsClient {
     /// Creates a new skills client.
-    pub(crate) fn new(http_client: reqwest::Client, base_url: url::Url) -> Self {
+    pub(crate) const fn new(http_client: reqwest::Client, base_url: url::Url) -> Self {
         Self {
             http_client,
             base_url,
@@ -422,6 +422,11 @@ impl SkillsClient {
     }
 
     /// Makes a GET request with query parameters.
+    // `Q` is only bound by `Serialize`, not `Sync`, so the `&Q` reference
+    // captured by this async fn makes the returned future `!Send`. Adding a
+    // `Sync` bound would be a breaking change for callers of this crate-
+    // internal helper, so we accept the `!Send` future instead.
+    #[allow(clippy::future_not_send)]
     async fn get_with_query<T, Q>(&self, path: &str, query: &Q) -> Result<T>
     where
         T: serde::de::DeserializeOwned,
@@ -480,7 +485,7 @@ impl SkillsClient {
             Ok(data)
         } else {
             let body = response.text().await.unwrap_or_default();
-            Err(Error::Streaming(format!("HTTP {}: {}", status, body)))
+            Err(Error::Streaming(format!("HTTP {status}: {body}")))
         }
     }
 }
@@ -537,11 +542,18 @@ impl Skills {
     /// # Returns
     ///
     /// Returns the created skill metadata.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - `params.bundle_mime_type` is not a valid MIME type
+    /// - Authentication fails
+    /// - The API request fails or returns a non-success status
     pub async fn create(&self, params: SkillCreateParams) -> Result<Skill> {
         let bundle_part = Part::bytes(params.bundle)
             .file_name("skill.zip")
             .mime_str(&params.bundle_mime_type)
-            .map_err(|e| Error::config(format!("Invalid MIME type: {}", e)))?;
+            .map_err(|e| Error::config(format!("Invalid MIME type: {e}")))?;
 
         let form = Form::new()
             .text("name", params.name)
@@ -556,11 +568,17 @@ impl Skills {
     /// # Arguments
     ///
     /// * `skill_id` - The unique identifier of the skill
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `skill_id` is empty, if authentication fails, or
+    /// if the API request fails (including when no skill with that ID
+    /// exists).
     pub async fn get(&self, skill_id: &str) -> Result<Skill> {
         if skill_id.is_empty() {
             return Err(Error::config("skill_id cannot be empty"));
         }
-        self.client.get(&format!("v1/skills/{}", skill_id)).await
+        self.client.get(&format!("v1/skills/{skill_id}")).await
     }
 
     /// Lists skills with optional filtering.
@@ -568,6 +586,10 @@ impl Skills {
     /// # Arguments
     ///
     /// * `params` - Pagination and filtering parameters
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if authentication fails or the API request fails.
     pub async fn list(&self, params: SkillsListParams) -> Result<SkillsListResponse> {
         self.client.get_with_query("v1/skills", &params).await
     }
@@ -577,11 +599,17 @@ impl Skills {
     /// # Arguments
     ///
     /// * `skill_id` - The unique identifier of the skill to delete
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `skill_id` is empty, if authentication fails, or
+    /// if the API request fails (including when no skill with that ID
+    /// exists).
     pub async fn delete(&self, skill_id: &str) -> Result<DeletedSkill> {
         if skill_id.is_empty() {
             return Err(Error::config("skill_id cannot be empty"));
         }
-        self.client.delete(&format!("v1/skills/{}", skill_id)).await
+        self.client.delete(&format!("v1/skills/{skill_id}")).await
     }
 
     // =========================================================================
@@ -594,6 +622,14 @@ impl Skills {
     ///
     /// * `skill_id` - The skill to create a version for
     /// * `params` - Version creation parameters
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - `skill_id` is empty
+    /// - `params.bundle_mime_type` is not a valid MIME type
+    /// - Authentication fails
+    /// - The API request fails or returns a non-success status
     pub async fn create_version(
         &self,
         skill_id: &str,
@@ -606,12 +642,12 @@ impl Skills {
         let bundle_part = Part::bytes(params.bundle)
             .file_name("version.zip")
             .mime_str(&params.bundle_mime_type)
-            .map_err(|e| Error::config(format!("Invalid MIME type: {}", e)))?;
+            .map_err(|e| Error::config(format!("Invalid MIME type: {e}")))?;
 
         let form = Form::new().part("bundle", bundle_part);
 
         self.client
-            .upload_multipart(&format!("v1/skills/{}/versions", skill_id), form)
+            .upload_multipart(&format!("v1/skills/{skill_id}/versions"), form)
             .await
     }
 
@@ -621,12 +657,18 @@ impl Skills {
     ///
     /// * `skill_id` - The skill ID
     /// * `version` - The version number (Unix timestamp)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `skill_id` is empty, if authentication fails, or
+    /// if the API request fails (including when no matching skill or
+    /// version exists).
     pub async fn get_version(&self, skill_id: &str, version: u64) -> Result<SkillVersion> {
         if skill_id.is_empty() {
             return Err(Error::config("skill_id cannot be empty"));
         }
         self.client
-            .get(&format!("v1/skills/{}/versions/{}", skill_id, version))
+            .get(&format!("v1/skills/{skill_id}/versions/{version}"))
             .await
     }
 
@@ -636,6 +678,11 @@ impl Skills {
     ///
     /// * `skill_id` - The skill ID
     /// * `params` - Pagination parameters
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `skill_id` is empty, if authentication fails, or
+    /// if the API request fails.
     pub async fn list_versions(
         &self,
         skill_id: &str,
@@ -645,7 +692,7 @@ impl Skills {
             return Err(Error::config("skill_id cannot be empty"));
         }
         self.client
-            .get_with_query(&format!("v1/skills/{}/versions", skill_id), &params)
+            .get_with_query(&format!("v1/skills/{skill_id}/versions"), &params)
             .await
     }
 
@@ -655,6 +702,12 @@ impl Skills {
     ///
     /// * `skill_id` - The skill ID
     /// * `version` - The version number to delete
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `skill_id` is empty, if authentication fails, or
+    /// if the API request fails (including when no matching skill or
+    /// version exists).
     pub async fn delete_version(
         &self,
         skill_id: &str,
@@ -664,7 +717,7 @@ impl Skills {
             return Err(Error::config("skill_id cannot be empty"));
         }
         self.client
-            .delete(&format!("v1/skills/{}/versions/{}", skill_id, version))
+            .delete(&format!("v1/skills/{skill_id}/versions/{version}"))
             .await
     }
 }
@@ -741,7 +794,7 @@ mod tests {
         assert_eq!(skill.id, "skill_abc123");
         assert_eq!(skill.name, "code-reviewer");
         assert_eq!(skill.skill_kind, SkillType::Custom);
-        assert_eq!(skill.latest_version, Some(1704067200));
+        assert_eq!(skill.latest_version, Some(1_704_067_200));
     }
 
     #[test]
@@ -756,7 +809,7 @@ mod tests {
         }"#;
 
         let version: SkillVersion = serde_json::from_str(json).unwrap();
-        assert_eq!(version.version, 1704067200);
+        assert_eq!(version.version, 1_704_067_200);
         assert_eq!(version.skill_id, "skill_abc123");
         assert_eq!(version.content_hash, Some("abc123".to_string()));
         assert_eq!(version.size_bytes, Some(1024));
@@ -791,9 +844,9 @@ mod tests {
     fn test_versions_list_params() {
         let params = VersionsListParams::new()
             .with_limit(25)
-            .with_after_version(1704067200);
+            .with_after_version(1_704_067_200);
 
         assert_eq!(params.limit, Some(25));
-        assert_eq!(params.after_version, Some(1704067200));
+        assert_eq!(params.after_version, Some(1_704_067_200));
     }
 }

@@ -33,7 +33,9 @@ use url::Url;
 
 use crate::config::{ClientConfig, ClientConfigBuilder};
 use crate::error::{ApiError, ApiErrorType, Error, RawApiErrorResponse, Result};
-use crate::http::{parse_retry_after, ExponentialBackoff, RetryConfig, RetryPolicy, HEADER_REQUEST_ID};
+use crate::http::{
+    parse_retry_after, ExponentialBackoff, RetryConfig, RetryPolicy, HEADER_REQUEST_ID,
+};
 
 // =============================================================================
 // Constants
@@ -154,10 +156,7 @@ impl Anthropic {
 
         // Add authentication header
         if let Some((name, value)) = config.auth_header() {
-            headers.insert(
-                HeaderName::try_from(name)?,
-                HeaderValue::try_from(value)?,
-            );
+            headers.insert(HeaderName::try_from(name)?, HeaderValue::try_from(value)?);
         }
 
         // Merge with custom headers from config
@@ -252,6 +251,11 @@ impl Anthropic {
     }
 
     /// Makes a POST request with a JSON body.
+    // `B` is only bound by `Serialize`, not `Sync`, so the `&B` reference held
+    // across the `.await` points inside `request` (retry loop) makes this
+    // future `!Send`. Adding a `Sync` bound would be a breaking API change for
+    // this crate's request helpers, so we accept the `!Send` future instead.
+    #[allow(clippy::future_not_send)]
     pub(crate) async fn post<T, B>(&self, path: &str, body: &B) -> Result<T>
     where
         T: serde::de::DeserializeOwned,
@@ -261,6 +265,9 @@ impl Anthropic {
     }
 
     /// Makes a GET request with query parameters.
+    // `Q` is only bound by `Serialize`, not `Sync`; see `post` above for why
+    // this makes the returned future `!Send`.
+    #[allow(clippy::future_not_send)]
     pub(crate) async fn get_with_query<T, Q>(&self, path: &str, query: &Q) -> Result<T>
     where
         T: serde::de::DeserializeOwned,
@@ -270,24 +277,14 @@ impl Anthropic {
             .await
     }
 
-    /// Makes a DELETE request to the specified path.
-    pub(crate) async fn delete<T>(&self, path: &str) -> Result<T>
-    where
-        T: serde::de::DeserializeOwned,
-    {
-        self.request(Method::DELETE, path, Option::<&()>::None)
-            .await
-    }
-
     /// Makes a POST request and returns the raw response for streaming.
     ///
     /// This is used internally for streaming requests where we need access
     /// to the raw response body.
-    pub(crate) async fn post_raw<B>(
-        &self,
-        path: &str,
-        body: &B,
-    ) -> Result<reqwest::Response>
+    // `B` is only bound by `Serialize`, not `Sync`; see `post` above for why
+    // this makes the returned future `!Send`.
+    #[allow(clippy::future_not_send)]
+    pub(crate) async fn post_raw<B>(&self, path: &str, body: &B) -> Result<reqwest::Response>
     where
         B: serde::Serialize,
     {
@@ -322,6 +319,10 @@ impl Anthropic {
     }
 
     /// Makes an HTTP request with query parameters and retry logic.
+    // `Q`/`B` are only bound by `Serialize`, not `Sync`, and `query`/`body`
+    // are held across `.await` points across retry-loop iterations; see
+    // `post` above for why this makes the returned future `!Send`.
+    #[allow(clippy::future_not_send)]
     async fn request_with_query<T, Q, B>(
         &self,
         method: Method,
@@ -337,8 +338,9 @@ impl Anthropic {
         let mut url = self.build_url(path)?;
 
         // Serialize query parameters and add to URL
-        let query_string = serde_urlencoded::to_string(query)
-            .map_err(|e| Error::RequestBuild(format!("Failed to serialize query parameters: {e}")))?;
+        let query_string = serde_urlencoded::to_string(query).map_err(|e| {
+            Error::RequestBuild(format!("Failed to serialize query parameters: {e}"))
+        })?;
         if !query_string.is_empty() {
             url.set_query(Some(&query_string));
         }
@@ -394,8 +396,10 @@ impl Anthropic {
 
                     // Check if we should retry
                     if error.is_retryable() {
-                        if let Some(delay) =
-                            self.inner.retry_policy.should_retry(&error.clone().into(), attempt)
+                        if let Some(delay) = self
+                            .inner
+                            .retry_policy
+                            .should_retry(&error.clone().into(), attempt)
                         {
                             debug!(delay = ?delay, attempt, "Retrying after error");
                             tokio::time::sleep(delay).await;
@@ -410,8 +414,7 @@ impl Anthropic {
 
                     // Check if we should retry
                     if error.is_retryable() {
-                        if let Some(delay) = self.inner.retry_policy.should_retry(&error, attempt)
-                        {
+                        if let Some(delay) = self.inner.retry_policy.should_retry(&error, attempt) {
                             debug!(delay = ?delay, attempt, "Retrying after error");
                             tokio::time::sleep(delay).await;
                             continue;
@@ -425,6 +428,10 @@ impl Anthropic {
     }
 
     /// Makes an HTTP request with retry logic.
+    // `B` is only bound by `Serialize`, not `Sync`, and `body` is held across
+    // `.await` points across retry-loop iterations; see `post` above for why
+    // this makes the returned future `!Send`.
+    #[allow(clippy::future_not_send)]
     async fn request<T, B>(&self, method: Method, path: &str, body: Option<&B>) -> Result<T>
     where
         T: serde::de::DeserializeOwned,
@@ -482,8 +489,10 @@ impl Anthropic {
 
                     // Check if we should retry
                     if error.is_retryable() {
-                        if let Some(delay) =
-                            self.inner.retry_policy.should_retry(&error.clone().into(), attempt)
+                        if let Some(delay) = self
+                            .inner
+                            .retry_policy
+                            .should_retry(&error.clone().into(), attempt)
                         {
                             debug!(delay = ?delay, attempt, "Retrying after error");
                             tokio::time::sleep(delay).await;
@@ -498,8 +507,7 @@ impl Anthropic {
 
                     // Check if we should retry
                     if error.is_retryable() {
-                        if let Some(delay) = self.inner.retry_policy.should_retry(&error, attempt)
-                        {
+                        if let Some(delay) = self.inner.retry_policy.should_retry(&error, attempt) {
                             debug!(delay = ?delay, attempt, "Retrying after error");
                             tokio::time::sleep(delay).await;
                             continue;
@@ -530,29 +538,31 @@ impl Anthropic {
         // Try to parse the error body
         let error_body = response.text().await.unwrap_or_default();
 
-        let (error_type, message) = if let Ok(raw_error) =
-            serde_json::from_str::<RawApiErrorResponse>(&error_body)
-        {
-            (raw_error.error.error_type, raw_error.error.message)
-        } else {
-            // Fallback: infer error type from status code
-            let error_type = match status.as_u16() {
-                400 => ApiErrorType::InvalidRequestError,
-                401 => ApiErrorType::AuthenticationError,
-                403 => ApiErrorType::PermissionError,
-                404 => ApiErrorType::NotFoundError,
-                429 => ApiErrorType::RateLimitError,
-                529 => ApiErrorType::OverloadedError,
-                _ if status.is_server_error() => ApiErrorType::ApiError,
-                _ => ApiErrorType::Unknown,
-            };
-            let message = if error_body.is_empty() {
-                status.canonical_reason().unwrap_or("Unknown error").to_string()
+        let (error_type, message) =
+            if let Ok(raw_error) = serde_json::from_str::<RawApiErrorResponse>(&error_body) {
+                (raw_error.error.error_type, raw_error.error.message)
             } else {
-                error_body
+                // Fallback: infer error type from status code
+                let error_type = match status.as_u16() {
+                    400 => ApiErrorType::InvalidRequestError,
+                    401 => ApiErrorType::AuthenticationError,
+                    403 => ApiErrorType::PermissionError,
+                    404 => ApiErrorType::NotFoundError,
+                    429 => ApiErrorType::RateLimitError,
+                    529 => ApiErrorType::OverloadedError,
+                    _ if status.is_server_error() => ApiErrorType::ApiError,
+                    _ => ApiErrorType::Unknown,
+                };
+                let message = if error_body.is_empty() {
+                    status
+                        .canonical_reason()
+                        .unwrap_or("Unknown error")
+                        .to_string()
+                } else {
+                    error_body
+                };
+                (error_type, message)
             };
-            (error_type, message)
-        };
 
         let mut error = ApiError::new(status, error_type, message);
 
@@ -738,10 +748,7 @@ mod tests {
             .build()
             .expect("Failed to build client");
 
-        assert_eq!(
-            client.base_url().as_str(),
-            "https://custom.example.com/"
-        );
+        assert_eq!(client.base_url().as_str(), "https://custom.example.com/");
         assert_eq!(client.max_retries(), 5);
         assert_eq!(client.timeout(), Duration::from_secs(30));
     }
@@ -753,10 +760,14 @@ mod tests {
             .build()
             .expect("Failed to build client");
 
-        let url = client.build_url("/v1/messages").expect("Failed to build URL");
+        let url = client
+            .build_url("/v1/messages")
+            .expect("Failed to build URL");
         assert_eq!(url.as_str(), "https://api.anthropic.com/v1/messages");
 
-        let url = client.build_url("v1/messages").expect("Failed to build URL");
+        let url = client
+            .build_url("v1/messages")
+            .expect("Failed to build URL");
         assert_eq!(url.as_str(), "https://api.anthropic.com/v1/messages");
     }
 

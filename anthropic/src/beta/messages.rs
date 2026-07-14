@@ -27,8 +27,8 @@ use std::sync::Arc;
 use crate::client::Anthropic;
 use crate::error::Result;
 use crate::types::content::{
-    ContentBlockParam, RedactedThinkingBlock, ServerToolUseBlock, TextBlock,
-    ThinkingBlock, ToolUseBlock, WebSearchToolResultBlock,
+    ContentBlockParam, RedactedThinkingBlock, ServerToolUseBlock, TextBlock, ThinkingBlock,
+    ToolUseBlock, WebSearchToolResultBlock,
 };
 use crate::types::model::Model;
 use crate::types::shared::{CacheControl, Metadata, Role};
@@ -50,7 +50,7 @@ pub struct BetaMessageService {
 
 impl BetaMessageService {
     /// Creates a new beta message service.
-    pub(crate) fn new(client: Arc<Anthropic>) -> Self {
+    pub(crate) const fn new(client: Arc<Anthropic>) -> Self {
         Self { client }
     }
 
@@ -61,6 +61,14 @@ impl BetaMessageService {
     /// # Arguments
     ///
     /// * `params` - Parameters for the message creation
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The API request fails
+    /// - The response cannot be parsed
+    /// - Authentication fails
+    /// - Rate limits are exceeded
     ///
     /// # Example
     ///
@@ -80,14 +88,15 @@ impl BetaMessageService {
         let beta_header = params
             .betas
             .iter()
-            .map(|b| b.as_str())
+            .map(super::BetaFeature::as_str)
             .collect::<Vec<_>>()
             .join(",");
 
         // Make the request with beta headers
         // Note: In a full implementation, we would add the header to the request
         // For now, we use the standard endpoint
-        let _beta_header = beta_header; // TODO: inject into request
+        // TODO: inject beta_header into the request (not currently wired up).
+        let _ = beta_header;
         self.client.post("v1/messages?beta=true", &params).await
     }
 
@@ -96,15 +105,26 @@ impl BetaMessageService {
     /// # Arguments
     ///
     /// * `params` - Parameters for token counting
-    pub async fn count_tokens(&self, params: BetaMessageCountTokensParams) -> Result<BetaMessageTokensCount> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The API request fails
+    /// - The response cannot be parsed
+    /// - Authentication fails
+    pub async fn count_tokens(
+        &self,
+        params: BetaMessageCountTokensParams,
+    ) -> Result<BetaMessageTokensCount> {
         let beta_header = params
             .betas
             .iter()
-            .map(|b| b.as_str())
+            .map(super::BetaFeature::as_str)
             .collect::<Vec<_>>()
             .join(",");
 
-        let _beta_header = beta_header; // TODO: inject into request
+        // TODO: inject beta_header into the request (not currently wired up).
+        let _ = beta_header;
         self.client
             .post("v1/messages/count_tokens?beta=true", &params)
             .await
@@ -119,13 +139,13 @@ impl BetaMessageService {
 ///
 /// When enabled, Claude will show its reasoning process in thinking blocks
 /// before providing the final answer.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ThinkingConfig {
     /// Thinking is enabled with a token budget.
     Enabled {
         /// Maximum tokens for thinking.
-        /// Minimum is 1024, and thinking tokens count towards max_tokens.
+        /// Minimum is 1024, and thinking tokens count towards `max_tokens`.
         budget_tokens: i64,
     },
 
@@ -142,32 +162,31 @@ impl ThinkingConfig {
     ///
     /// # Panics
     ///
-    /// Panics if budget_tokens is less than 1024.
+    /// Panics if `budget_tokens` is less than 1024.
     #[must_use]
     pub fn enabled(budget_tokens: i64) -> Self {
         assert!(
             budget_tokens >= 1024,
-            "budget_tokens must be at least 1024, got {}",
-            budget_tokens
+            "budget_tokens must be at least 1024, got {budget_tokens}"
         );
         Self::Enabled { budget_tokens }
     }
 
     /// Creates a disabled thinking config.
     #[must_use]
-    pub fn disabled() -> Self {
+    pub const fn disabled() -> Self {
         Self::Disabled
     }
 
     /// Returns true if thinking is enabled.
     #[must_use]
-    pub fn is_enabled(&self) -> bool {
+    pub const fn is_enabled(&self) -> bool {
         matches!(self, Self::Enabled { .. })
     }
 
     /// Returns the budget tokens if enabled.
     #[must_use]
-    pub fn budget_tokens(&self) -> Option<i64> {
+    pub const fn budget_tokens(&self) -> Option<i64> {
         match self {
             Self::Enabled { budget_tokens } => Some(*budget_tokens),
             Self::Disabled => None,
@@ -177,7 +196,7 @@ impl ThinkingConfig {
 
 /// Thinking configuration parameter for requests.
 ///
-/// This is an alias for ThinkingConfig used in request parameters.
+/// This is an alias for `ThinkingConfig` used in request parameters.
 pub type ThinkingConfigParam = ThinkingConfig;
 
 // =============================================================================
@@ -187,7 +206,7 @@ pub type ThinkingConfigParam = ThinkingConfig;
 /// A beta message response from the API.
 ///
 /// This extends the standard Message with additional beta-specific fields.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BetaMessage {
     /// Unique identifier for this message.
     pub id: String,
@@ -263,7 +282,7 @@ impl BetaMessage {
     /// Returns true if the response contains thinking blocks.
     #[must_use]
     pub fn has_thinking(&self) -> bool {
-        self.content.iter().any(|block| block.is_thinking())
+        self.content.iter().any(BetaContentBlock::is_thinking)
     }
 }
 
@@ -273,8 +292,8 @@ impl BetaMessage {
 
 /// Content block in a beta assistant response.
 ///
-/// This extends the standard ContentBlock with additional beta types.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// This extends the standard `ContentBlock` with additional beta types.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum BetaContentBlock {
     /// Text content.
@@ -317,7 +336,7 @@ impl BetaContentBlock {
 
     /// Returns the tool use block if this is a tool use.
     #[must_use]
-    pub fn as_tool_use(&self) -> Option<&ToolUseBlock> {
+    pub const fn as_tool_use(&self) -> Option<&ToolUseBlock> {
         match self {
             Self::ToolUse(block) => Some(block),
             _ => None,
@@ -326,19 +345,19 @@ impl BetaContentBlock {
 
     /// Returns true if this is a text block.
     #[must_use]
-    pub fn is_text(&self) -> bool {
+    pub const fn is_text(&self) -> bool {
         matches!(self, Self::Text(_))
     }
 
     /// Returns true if this is a thinking block.
     #[must_use]
-    pub fn is_thinking(&self) -> bool {
+    pub const fn is_thinking(&self) -> bool {
         matches!(self, Self::Thinking(_))
     }
 
     /// Returns true if this is a tool use block.
     #[must_use]
-    pub fn is_tool_use(&self) -> bool {
+    pub const fn is_tool_use(&self) -> bool {
         matches!(self, Self::ToolUse(_))
     }
 }
@@ -406,7 +425,7 @@ pub struct BetaServerToolUsage {
 // =============================================================================
 
 /// A message in a beta conversation (for requests).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BetaMessageParam {
     /// The role of the message author.
     pub role: Role,
@@ -427,7 +446,7 @@ impl BetaMessageParam {
 
     /// Creates a new user message with content blocks.
     #[must_use]
-    pub fn user_with_blocks(blocks: Vec<ContentBlockParam>) -> Self {
+    pub const fn user_with_blocks(blocks: Vec<ContentBlockParam>) -> Self {
         Self {
             role: Role::User,
             content: BetaMessageContent::Blocks(blocks),
@@ -445,7 +464,7 @@ impl BetaMessageParam {
 
     /// Creates a new assistant message with content blocks.
     #[must_use]
-    pub fn assistant_with_blocks(blocks: Vec<ContentBlockParam>) -> Self {
+    pub const fn assistant_with_blocks(blocks: Vec<ContentBlockParam>) -> Self {
         Self {
             role: Role::Assistant,
             content: BetaMessageContent::Blocks(blocks),
@@ -454,7 +473,7 @@ impl BetaMessageParam {
 }
 
 /// Content of a beta message.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum BetaMessageContent {
     /// Simple text content.
@@ -531,7 +550,7 @@ pub struct BetaMessageCreateParams {
 impl BetaMessageCreateParams {
     /// Creates new beta message parameters.
     #[must_use]
-    pub fn new(model: Model, messages: Vec<BetaMessageParam>, max_tokens: i64) -> Self {
+    pub const fn new(model: Model, messages: Vec<BetaMessageParam>, max_tokens: i64) -> Self {
         Self {
             model,
             messages,
@@ -574,14 +593,14 @@ impl BetaMessageCreateParams {
 
     /// Sets the temperature.
     #[must_use]
-    pub fn with_temperature(mut self, temperature: f64) -> Self {
+    pub const fn with_temperature(mut self, temperature: f64) -> Self {
         self.temperature = Some(temperature);
         self
     }
 
     /// Sets streaming mode.
     #[must_use]
-    pub fn with_stream(mut self, stream: bool) -> Self {
+    pub const fn with_stream(mut self, stream: bool) -> Self {
         self.stream = Some(stream);
         self
     }
@@ -602,7 +621,7 @@ impl BetaMessageCreateParams {
 
     /// Sets extended thinking.
     #[must_use]
-    pub fn with_thinking(mut self, thinking: ThinkingConfig) -> Self {
+    pub const fn with_thinking(mut self, thinking: ThinkingConfig) -> Self {
         self.thinking = Some(thinking);
         self
     }
@@ -616,7 +635,7 @@ impl BetaMessageCreateParams {
 
     /// Sets the service tier.
     #[must_use]
-    pub fn with_service_tier(mut self, tier: BetaServiceTier) -> Self {
+    pub const fn with_service_tier(mut self, tier: BetaServiceTier) -> Self {
         self.service_tier = Some(tier);
         self
     }
@@ -677,14 +696,14 @@ impl BetaMessageCreateParamsBuilder {
 
     /// Sets the temperature.
     #[must_use]
-    pub fn temperature(mut self, temperature: f64) -> Self {
+    pub const fn temperature(mut self, temperature: f64) -> Self {
         self.params.temperature = Some(temperature);
         self
     }
 
     /// Sets streaming mode.
     #[must_use]
-    pub fn stream(mut self, stream: bool) -> Self {
+    pub const fn stream(mut self, stream: bool) -> Self {
         self.params.stream = Some(stream);
         self
     }
@@ -732,7 +751,7 @@ impl BetaMessageCreateParamsBuilder {
 // =============================================================================
 
 /// System prompt for a beta conversation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum BetaSystemPrompt {
     /// Simple text system prompt.
@@ -754,7 +773,7 @@ impl From<String> for BetaSystemPrompt {
 }
 
 /// Text block parameter for beta system prompts.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BetaTextBlockParam {
     /// Block type (always "text").
     #[serde(rename = "type")]
@@ -781,7 +800,7 @@ impl BetaTextBlockParam {
 
     /// Adds cache control.
     #[must_use]
-    pub fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
+    pub const fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
         self.cache_control = Some(cache_control);
         self
     }
@@ -792,7 +811,7 @@ impl BetaTextBlockParam {
 // =============================================================================
 
 /// Tool choice configuration for beta requests.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum BetaToolChoice {
     /// Model automatically decides whether to use tools.
@@ -826,7 +845,7 @@ pub enum BetaToolChoice {
 impl BetaToolChoice {
     /// Creates an auto tool choice.
     #[must_use]
-    pub fn auto() -> Self {
+    pub const fn auto() -> Self {
         Self::Auto {
             disable_parallel_tool_use: None,
         }
@@ -834,7 +853,7 @@ impl BetaToolChoice {
 
     /// Creates an any tool choice.
     #[must_use]
-    pub fn any() -> Self {
+    pub const fn any() -> Self {
         Self::Any {
             disable_parallel_tool_use: None,
         }
@@ -851,7 +870,7 @@ impl BetaToolChoice {
 
     /// Creates a none tool choice.
     #[must_use]
-    pub fn none() -> Self {
+    pub const fn none() -> Self {
         Self::None
     }
 }
@@ -863,17 +882,13 @@ impl BetaToolChoice {
 /// Service tier for beta request processing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum BetaServiceTier {
     /// Automatic tier selection.
+    #[default]
     Auto,
     /// Standard tier only.
     StandardOnly,
-}
-
-impl Default for BetaServiceTier {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 // =============================================================================
@@ -881,7 +896,7 @@ impl Default for BetaServiceTier {
 // =============================================================================
 
 /// Parameters for counting tokens in a beta message.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BetaMessageCountTokensParams {
     /// The model to use for counting.
     pub model: Model,
@@ -949,7 +964,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "budget_tokens must be at least 1024")]
     fn test_thinking_config_min_budget() {
-        ThinkingConfig::enabled(500);
+        let _ = ThinkingConfig::enabled(500);
     }
 
     #[test]
@@ -958,7 +973,7 @@ mod tests {
         assert_eq!(msg.role, Role::User);
         match msg.content {
             BetaMessageContent::Text(text) => assert_eq!(text, "Hello!"),
-            _ => panic!("Expected text content"),
+            BetaMessageContent::Blocks(_) => panic!("Expected text content"),
         }
     }
 
@@ -1000,7 +1015,7 @@ mod tests {
         let prompt: BetaSystemPrompt = "You are helpful.".into();
         match prompt {
             BetaSystemPrompt::Text(text) => assert_eq!(text, "You are helpful."),
-            _ => panic!("Expected text"),
+            BetaSystemPrompt::Blocks(_) => panic!("Expected text"),
         }
     }
 
@@ -1060,8 +1075,7 @@ mod tests {
 
     #[test]
     fn test_beta_text_block_param() {
-        let block = BetaTextBlockParam::new("Hello")
-            .with_cache_control(CacheControl::ephemeral());
+        let block = BetaTextBlockParam::new("Hello").with_cache_control(CacheControl::ephemeral());
         let json = serde_json::to_string(&block).unwrap();
         assert!(json.contains("\"type\":\"text\""));
         assert!(json.contains("\"text\":\"Hello\""));

@@ -204,14 +204,8 @@ impl ClientConfigBuilder {
     ///     .api_key("sk-ant-...")
     ///     .header("X-Custom-Header", "custom-value");
     /// ```
-    pub fn header(
-        &mut self,
-        name: impl AsRef<str>,
-        value: impl AsRef<str>,
-    ) -> &mut Self {
-        let headers = self
-            .default_headers
-            .get_or_insert_with(|| HeaderMap::new());
+    pub fn header(&mut self, name: impl AsRef<str>, value: impl AsRef<str>) -> &mut Self {
+        let headers = self.default_headers.get_or_insert_with(HeaderMap::new);
         if let (Ok(name), Ok(value)) = (
             HeaderName::try_from(name.as_ref()),
             HeaderValue::try_from(value.as_ref()),
@@ -234,14 +228,12 @@ impl ClientConfigBuilder {
         let has_api_key = self
             .api_key
             .as_ref()
-            .map(|opt| opt.is_some())
-            .unwrap_or(false);
+            .is_some_and(std::option::Option::is_some);
 
         let has_auth_token = self
             .auth_token
             .as_ref()
-            .map(|opt| opt.is_some())
-            .unwrap_or(false);
+            .is_some_and(std::option::Option::is_some);
 
         if !has_api_key && !has_auth_token {
             return Err(Error::config(
@@ -318,9 +310,8 @@ impl ClientConfig {
         // Read base URL from environment
         if let Ok(url_str) = std::env::var(ENV_BASE_URL) {
             if !url_str.is_empty() {
-                let url = Url::parse(&url_str).map_err(|e| {
-                    Error::config(format!("Invalid base URL '{}': {}", url_str, e))
-                })?;
+                let url = Url::parse(&url_str)
+                    .map_err(|e| Error::config(format!("Invalid base URL '{url_str}': {e}")))?;
                 builder.base_url(url);
             }
         }
@@ -346,7 +337,9 @@ impl ClientConfig {
     /// ```
     #[must_use]
     pub fn api_key(&self) -> Option<&str> {
-        self.api_key.as_ref().map(|s| s.expose_secret().as_ref())
+        self.api_key
+            .as_ref()
+            .map(secrecy::ExposeSecret::expose_secret)
     }
 
     /// Returns the auth token as a string slice, if configured.
@@ -355,7 +348,9 @@ impl ClientConfig {
     /// Use with caution and avoid logging the returned value.
     #[must_use]
     pub fn auth_token(&self) -> Option<&str> {
-        self.auth_token.as_ref().map(|s| s.expose_secret().as_ref())
+        self.auth_token
+            .as_ref()
+            .map(secrecy::ExposeSecret::expose_secret)
     }
 
     /// Returns the authentication header name and value.
@@ -367,7 +362,7 @@ impl ClientConfig {
     ///
     /// # Returns
     ///
-    /// A tuple of (header_name, header_value) if authentication is configured,
+    /// A tuple of (`header_name`, `header_value`) if authentication is configured,
     /// or `None` if no authentication is available.
     ///
     /// # Example
@@ -401,25 +396,25 @@ impl ClientConfig {
 
     /// Returns the base URL for API requests.
     #[must_use]
-    pub fn base_url(&self) -> &Url {
+    pub const fn base_url(&self) -> &Url {
         &self.base_url
     }
 
     /// Returns the maximum number of retry attempts.
     #[must_use]
-    pub fn max_retries(&self) -> u32 {
+    pub const fn max_retries(&self) -> u32 {
         self.max_retries
     }
 
     /// Returns the request timeout duration.
     #[must_use]
-    pub fn timeout(&self) -> Duration {
+    pub const fn timeout(&self) -> Duration {
         self.timeout
     }
 
     /// Returns the default headers to include in all requests.
     #[must_use]
-    pub fn default_headers(&self) -> &HeaderMap {
+    pub const fn default_headers(&self) -> &HeaderMap {
         &self.default_headers
     }
 }
@@ -577,7 +572,7 @@ mod tests {
             .build()
             .expect("Failed to build config");
 
-        let debug_output = format!("{:?}", config);
+        let debug_output = format!("{config:?}");
 
         // The debug output should not contain the actual secret
         assert!(!debug_output.contains("super-secret-key"));

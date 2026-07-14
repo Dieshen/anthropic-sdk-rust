@@ -166,50 +166,50 @@ pub mod client;
 // Re-export main types at crate root
 pub use auth::GoogleCredentials;
 pub use client::{
+    CacheControl,
+    // Content types
+    ContentBlock,
+    ContentBlockParam,
+    ContentDelta,
+    DeltaUsage,
+    ImageSource,
+    MessageContent,
+    MessageDeltaContent,
+    // Message types
+    MessageParam,
+    // Misc types
+    Metadata,
+    Role,
+    StopReason,
+    StreamError,
+    // Streaming types
+    StreamEvent,
+    SystemPrompt,
+    SystemPromptBlock,
+    ThinkingConfig,
+    TokenCount,
+    // Tool types
+    Tool,
+    ToolChoice,
+    ToolInputSchema,
+    ToolResultBlock,
+    ToolResultContent,
+    ToolUseBlock,
+    Usage,
     // Client
     VertexClient,
     VertexClientBuilder,
     VertexConfig,
-    // Models
-    VertexModel,
+    VertexCountTokensParams,
+    VertexMessage,
     // Request/Response types
     VertexMessageParams,
-    VertexMessage,
-    VertexCountTokensParams,
-    TokenCount,
-    // Message types
-    MessageParam,
-    MessageContent,
-    Role,
-    SystemPrompt,
-    SystemPromptBlock,
-    StopReason,
-    // Content types
-    ContentBlock,
-    ContentBlockParam,
-    ToolUseBlock,
-    ImageSource,
-    ToolResultContent,
-    ToolResultBlock,
-    // Tool types
-    Tool,
-    ToolInputSchema,
-    ToolChoice,
-    // Misc types
-    Metadata,
-    CacheControl,
-    ThinkingConfig,
-    Usage,
-    // Streaming types
-    StreamEvent,
-    ContentDelta,
-    MessageDeltaContent,
-    DeltaUsage,
-    StreamError,
+    // Models
+    VertexModel,
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_TIMEOUT_SECS,
     // Constants
     VERTEX_ANTHROPIC_VERSION,
-    DEFAULT_TIMEOUT_SECS,
-    DEFAULT_MAX_RETRIES,
 };
 
 /// Crate version.
@@ -291,8 +291,13 @@ mod tests {
     #[test]
     fn test_reexports() {
         // Verify that key types are properly re-exported
-        let _model = VertexModel::Claude35SonnetV2;
-        let _msg = MessageParam::user("test");
-        let _role = Role::User;
+        let model = VertexModel::Claude35SonnetV2;
+        assert_eq!(model, VertexModel::Claude35SonnetV2);
+
+        let msg = MessageParam::user("test");
+        assert_eq!(msg.role, Role::User);
+
+        let role = Role::User;
+        assert_eq!(role, Role::User);
     }
 }

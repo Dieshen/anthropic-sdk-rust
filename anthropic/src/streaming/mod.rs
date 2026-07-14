@@ -62,7 +62,7 @@ pub use events::{
     ContentBlockDelta, ContentBlockStartContent, MessageDelta, MessageDeltaUsage, StreamEvent,
 };
 pub use jsonl::{encode_jsonl, parse_jsonl, JsonlEncoder, JsonlReader, JsonlStream};
-pub use sse::{SseDecoder, SseEvent, SseError};
+pub use sse::{SseDecoder, SseError, SseEvent};
 pub use stream::{MessageStream, MessageStreamError, StreamState};
 
 #[cfg(test)]
@@ -75,6 +75,8 @@ mod tests {
         let _ = std::any::type_name::<StreamEvent>();
         let _ = std::any::type_name::<ContentBlockDelta>();
         let _ = std::any::type_name::<SseDecoder>();
-        let _ = std::any::type_name::<MessageStream<futures::stream::Empty<Result<bytes::Bytes, std::io::Error>>>>();
+        let _ = std::any::type_name::<
+            MessageStream<futures::stream::Empty<Result<bytes::Bytes, std::io::Error>>>,
+        >();
     }
 }

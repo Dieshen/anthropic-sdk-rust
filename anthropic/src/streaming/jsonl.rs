@@ -78,7 +78,10 @@ where
     /// # Arguments
     ///
     /// * `response` - The reqwest Response to stream from
-    pub fn from_response(response: reqwest::Response) -> JsonlStream<T, impl Stream<Item = std::result::Result<Bytes, reqwest::Error>>> {
+    #[must_use]
+    pub fn from_response(
+        response: reqwest::Response,
+    ) -> JsonlStream<T, impl Stream<Item = std::result::Result<Bytes, reqwest::Error>>> {
         JsonlStream::new(response.bytes_stream())
     }
 }
@@ -124,7 +127,9 @@ where
                 }
                 Poll::Ready(None) => {
                     // Stream ended - check if there's remaining data in buffer
-                    if this.buffer.is_empty() || this.buffer.iter().all(|&b| b.is_ascii_whitespace()) {
+                    if this.buffer.is_empty()
+                        || this.buffer.iter().all(|&b| b.is_ascii_whitespace())
+                    {
                         return Poll::Ready(None);
                     }
                     // Try to parse remaining buffer as final line
@@ -181,6 +186,7 @@ where
     T: DeserializeOwned,
 {
     /// Creates a new JSONL reader from a byte slice.
+    #[must_use]
     pub fn from_bytes(data: &[u8]) -> Self {
         Self {
             reader: BufReader::new(Cursor::new(data.to_vec())),
@@ -189,6 +195,11 @@ where
     }
 
     /// Creates a new JSONL reader from a string.
+    // Intentionally not `std::str::FromStr`: this constructor is infallible
+    // (no `Err` type) and takes a full multi-line JSONL document rather than
+    // parsing a single value, so it doesn't fit that trait's contract.
+    #[allow(clippy::should_implement_trait)]
+    #[must_use]
     pub fn from_str(data: &str) -> Self {
         Self::from_bytes(data.as_bytes())
     }
@@ -236,7 +247,9 @@ where
                     }
                 }
                 Err(e) => {
-                    return Some(Err(Error::Streaming(format!("IO error reading JSONL: {}", e))));
+                    return Some(Err(Error::Streaming(format!(
+                        "IO error reading JSONL: {e}"
+                    ))));
                 }
             }
         }
@@ -277,11 +290,13 @@ pub struct JsonlEncoder {
 
 impl JsonlEncoder {
     /// Creates a new JSONL encoder.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Creates a new encoder with pre-allocated capacity.
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             buffer: Vec::with_capacity(capacity),
@@ -300,11 +315,13 @@ impl JsonlEncoder {
     }
 
     /// Returns the encoded JSONL as bytes.
+    #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
         &self.buffer
     }
 
     /// Consumes the encoder and returns the bytes.
+    #[must_use]
     pub fn into_bytes(self) -> Vec<u8> {
         self.buffer
     }
@@ -314,17 +331,20 @@ impl JsonlEncoder {
     /// # Panics
     ///
     /// Panics if the buffer contains invalid UTF-8 (should not happen for valid JSON).
+    #[must_use]
     pub fn into_string(self) -> String {
         String::from_utf8(self.buffer).expect("JSON should be valid UTF-8")
     }
 
     /// Returns the current length of the buffer.
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.buffer.len()
     }
 
     /// Returns true if the buffer is empty.
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.buffer.is_empty()
     }
 
@@ -361,6 +381,11 @@ impl JsonlEncoder {
 /// let items: Vec<Item> = parse_jsonl(data).unwrap();
 /// assert_eq!(items.len(), 3);
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if any non-empty line fails to deserialize as `T`
+/// (invalid JSON, or JSON that doesn't match `T`'s shape).
 pub fn parse_jsonl<T: DeserializeOwned>(data: &str) -> Result<Vec<T>> {
     JsonlReader::from_str(data).collect()
 }
@@ -380,6 +405,10 @@ pub fn parse_jsonl<T: DeserializeOwned>(data: &str) -> Result<Vec<T>> {
 /// let jsonl = encode_jsonl(&items).unwrap();
 /// assert!(jsonl.contains(r#"{"id":1}"#));
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if any item fails to serialize to JSON.
 pub fn encode_jsonl<T: serde::Serialize>(items: &[T]) -> Result<String> {
     let mut encoder = JsonlEncoder::with_capacity(items.len() * 64);
     for item in items {
@@ -453,8 +482,18 @@ not valid json
     #[test]
     fn test_jsonl_encoder() {
         let mut encoder = JsonlEncoder::new();
-        encoder.push(&TestItem { id: "1".to_string(), value: 10 }).unwrap();
-        encoder.push(&TestItem { id: "2".to_string(), value: 20 }).unwrap();
+        encoder
+            .push(&TestItem {
+                id: "1".to_string(),
+                value: 10,
+            })
+            .unwrap();
+        encoder
+            .push(&TestItem {
+                id: "2".to_string(),
+                value: 20,
+            })
+            .unwrap();
 
         let output = encoder.into_string();
         assert!(output.contains(r#"{"id":"1","value":10}"#));
@@ -476,8 +515,14 @@ not valid json
     #[test]
     fn test_encode_jsonl() {
         let items = vec![
-            TestItem { id: "1".to_string(), value: 10 },
-            TestItem { id: "2".to_string(), value: 20 },
+            TestItem {
+                id: "1".to_string(),
+                value: 10,
+            },
+            TestItem {
+                id: "2".to_string(),
+                value: 20,
+            },
         ];
 
         let output = encode_jsonl(&items).unwrap();
@@ -497,7 +542,12 @@ not valid json
     #[test]
     fn test_encoder_clear() {
         let mut encoder = JsonlEncoder::new();
-        encoder.push(&TestItem { id: "1".to_string(), value: 10 }).unwrap();
+        encoder
+            .push(&TestItem {
+                id: "1".to_string(),
+                value: 10,
+            })
+            .unwrap();
         assert!(!encoder.is_empty());
 
         encoder.clear();
@@ -507,9 +557,18 @@ not valid json
     #[test]
     fn test_roundtrip() {
         let original = vec![
-            TestItem { id: "a".to_string(), value: 1 },
-            TestItem { id: "b".to_string(), value: 2 },
-            TestItem { id: "c".to_string(), value: 3 },
+            TestItem {
+                id: "a".to_string(),
+                value: 1,
+            },
+            TestItem {
+                id: "b".to_string(),
+                value: 2,
+            },
+            TestItem {
+                id: "c".to_string(),
+                value: 3,
+            },
         ];
 
         let encoded = encode_jsonl(&original).unwrap();

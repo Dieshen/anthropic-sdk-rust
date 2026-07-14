@@ -162,19 +162,19 @@ impl BedrockConfig {
 
     /// Returns the AWS credentials.
     #[must_use]
-    pub fn credentials(&self) -> &AwsCredentials {
+    pub const fn credentials(&self) -> &AwsCredentials {
         &self.credentials
     }
 
     /// Returns the request timeout.
     #[must_use]
-    pub fn timeout(&self) -> Duration {
+    pub const fn timeout(&self) -> Duration {
         self.timeout
     }
 
     /// Returns the maximum number of retries.
     #[must_use]
-    pub fn max_retries(&self) -> u32 {
+    pub const fn max_retries(&self) -> u32 {
         self.max_retries
     }
 
@@ -218,14 +218,14 @@ impl BedrockConfigBuilder {
 
     /// Sets the request timeout.
     #[must_use]
-    pub fn timeout(mut self, timeout: Duration) -> Self {
+    pub const fn timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout);
         self
     }
 
     /// Sets the maximum number of retries.
     #[must_use]
-    pub fn max_retries(mut self, max_retries: u32) -> Self {
+    pub const fn max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = Some(max_retries);
         self
     }
@@ -258,7 +258,9 @@ impl BedrockConfigBuilder {
         Ok(BedrockConfig {
             region,
             credentials,
-            timeout: self.timeout.unwrap_or(Duration::from_secs(DEFAULT_TIMEOUT_SECS)),
+            timeout: self
+                .timeout
+                .unwrap_or(Duration::from_secs(DEFAULT_TIMEOUT_SECS)),
             max_retries: self.max_retries.unwrap_or(DEFAULT_MAX_RETRIES),
             custom_headers: self.custom_headers,
         })
@@ -280,7 +282,7 @@ pub enum Role {
 }
 
 /// A message in a conversation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Message {
     /// The role of the message author.
     pub role: Role,
@@ -309,7 +311,7 @@ impl Message {
 
     /// Creates a message with content blocks.
     #[must_use]
-    pub fn with_blocks(role: Role, blocks: Vec<ContentBlock>) -> Self {
+    pub const fn with_blocks(role: Role, blocks: Vec<ContentBlock>) -> Self {
         Self {
             role,
             content: MessageContent::Blocks(blocks),
@@ -318,7 +320,7 @@ impl Message {
 }
 
 /// Message content (text or blocks).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MessageContent {
     /// Simple text content.
@@ -328,7 +330,7 @@ pub enum MessageContent {
 }
 
 /// A content block in a message.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlock {
     /// Text content.
@@ -360,7 +362,7 @@ pub enum ContentBlock {
 }
 
 /// Image source for image content blocks.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ImageSource {
     /// Base64 encoded image.
@@ -444,7 +446,7 @@ pub struct CreateMessageRequest {
 impl CreateMessageRequest {
     /// Creates a new request builder.
     #[must_use]
-    pub fn builder(max_tokens: u32) -> CreateMessageRequestBuilder {
+    pub const fn builder(max_tokens: u32) -> CreateMessageRequestBuilder {
         CreateMessageRequestBuilder::new(max_tokens)
     }
 }
@@ -466,7 +468,7 @@ pub struct CreateMessageRequestBuilder {
 impl CreateMessageRequestBuilder {
     /// Creates a new builder.
     #[must_use]
-    pub fn new(max_tokens: u32) -> Self {
+    pub const fn new(max_tokens: u32) -> Self {
         Self {
             max_tokens,
             messages: Vec::new(),
@@ -517,21 +519,21 @@ impl CreateMessageRequestBuilder {
 
     /// Sets the temperature.
     #[must_use]
-    pub fn temperature(mut self, temperature: f64) -> Self {
+    pub const fn temperature(mut self, temperature: f64) -> Self {
         self.temperature = Some(temperature);
         self
     }
 
     /// Sets top-p.
     #[must_use]
-    pub fn top_p(mut self, top_p: f64) -> Self {
+    pub const fn top_p(mut self, top_p: f64) -> Self {
         self.top_p = Some(top_p);
         self
     }
 
     /// Sets top-k.
     #[must_use]
-    pub fn top_k(mut self, top_k: u32) -> Self {
+    pub const fn top_k(mut self, top_k: u32) -> Self {
         self.top_k = Some(top_k);
         self
     }
@@ -607,7 +609,7 @@ impl CreateMessageResponse {
             .iter()
             .filter_map(|block| match block {
                 ResponseContentBlock::Text { text } => Some(text.as_str()),
-                _ => None,
+                ResponseContentBlock::ToolUse { .. } => None,
             })
             .collect::<Vec<_>>()
             .join("")
@@ -630,7 +632,7 @@ impl CreateMessageResponse {
 }
 
 /// Content block in a response.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ResponseContentBlock {
     /// Text content.
@@ -650,7 +652,7 @@ pub enum ResponseContentBlock {
 }
 
 /// Tool definition.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Tool {
     /// Tool name.
     pub name: String,
@@ -678,7 +680,7 @@ impl Tool {
 }
 
 /// Tool choice specification.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ToolChoice {
     /// Model decides whether to use tools.
@@ -784,7 +786,10 @@ impl BedrockClient {
             .map_err(Error::Http)?;
 
         Ok(Self {
-            inner: Arc::new(BedrockClientInner { http_client, config }),
+            inner: Arc::new(BedrockClientInner {
+                http_client,
+                config,
+            }),
         })
     }
 
@@ -851,13 +856,13 @@ impl BedrockClient {
     ///
     /// # Note
     ///
-    /// Bedrock uses AWS EventStream format for streaming, which is different
+    /// Bedrock uses AWS `EventStream` format for streaming, which is different
     /// from the SSE format used by the direct Anthropic API. This method
-    /// returns the raw response bytes - parsing EventStream is complex and
+    /// returns the raw response bytes - parsing `EventStream` is complex and
     /// may require additional processing.
     ///
     /// For production streaming use, consider using the AWS SDK's Bedrock
-    /// Runtime client which provides built-in EventStream decoding.
+    /// Runtime client which provides built-in `EventStream` decoding.
     ///
     /// # Arguments
     ///
@@ -897,21 +902,14 @@ impl BedrockClient {
 
         // Parse response
         let response_body = response.bytes().await?;
-        trace!(
-            body_len = response_body.len(),
-            "Received response body"
-        );
+        trace!(body_len = response_body.len(), "Received response body");
 
         let parsed: R = serde_json::from_slice(&response_body)?;
         Ok(parsed)
     }
 
     /// Invokes a Bedrock model with streaming response.
-    async fn invoke_model_stream<T>(
-        &self,
-        path: &str,
-        request: &T,
-    ) -> Result<BedrockStreamResponse>
+    async fn invoke_model_stream<T>(&self, path: &str, request: &T) -> Result<BedrockStreamResponse>
     where
         T: Serialize,
     {
@@ -928,11 +926,7 @@ impl BedrockClient {
     }
 
     /// Sends a signed request to Bedrock.
-    async fn send_signed_request(
-        &self,
-        path: &str,
-        body: &[u8],
-    ) -> Result<reqwest::Response> {
+    async fn send_signed_request(&self, path: &str, body: &[u8]) -> Result<reqwest::Response> {
         let config = &self.inner.config;
         let host = config.host();
         let url = format!("https://{host}{path}");
@@ -958,11 +952,7 @@ impl BedrockClient {
         let signed_headers = sign_request(&signing_request)?;
 
         // Build the request
-        let mut request_builder = self
-            .inner
-            .http_client
-            .post(&url)
-            .body(body.to_vec());
+        let mut request_builder = self.inner.http_client.post(&url).body(body.to_vec());
 
         // Add signed headers
         for (name, value) in signed_headers {
@@ -976,11 +966,7 @@ impl BedrockClient {
     }
 
     /// Parses an error response from Bedrock.
-    async fn parse_error_response(
-        &self,
-        status: StatusCode,
-        response: reqwest::Response,
-    ) -> Error {
+    async fn parse_error_response(&self, status: StatusCode, response: reqwest::Response) -> Error {
         let body = response
             .text()
             .await
@@ -1069,12 +1055,12 @@ impl BedrockClientBuilder {
 
 /// A streaming response from Bedrock.
 ///
-/// Bedrock uses AWS EventStream format for streaming, which encodes events
+/// Bedrock uses AWS `EventStream` format for streaming, which encodes events
 /// as binary frames. This struct wraps the raw HTTP response.
 ///
-/// # EventStream Format
+/// # `EventStream` Format
 ///
-/// Each EventStream message contains:
+/// Each `EventStream` message contains:
 /// - Prelude: Total byte length and headers length (8 bytes)
 /// - Headers: Key-value pairs with type information
 /// - Payload: The actual data (base64-encoded JSON for Bedrock)
@@ -1106,7 +1092,11 @@ impl BedrockStreamResponse {
 
     /// Consumes the response and returns the body as bytes.
     ///
-    /// The bytes are in AWS EventStream format and need to be decoded.
+    /// The bytes are in AWS `EventStream` format and need to be decoded.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if reading the response body fails.
     pub async fn bytes(self) -> Result<Bytes> {
         Ok(self.response.bytes().await?)
     }
@@ -1150,7 +1140,7 @@ mod tests {
         assert_eq!(msg.role, Role::User);
         match msg.content {
             MessageContent::Text(text) => assert_eq!(text, "Hello!"),
-            _ => panic!("Expected text content"),
+            MessageContent::Blocks(_) => panic!("Expected text content"),
         }
     }
 
@@ -1176,9 +1166,7 @@ mod tests {
 
     #[test]
     fn test_create_message_request_serialization() {
-        let request = CreateMessageRequest::builder(1024)
-            .user("Hello!")
-            .build();
+        let request = CreateMessageRequest::builder(1024).user("Hello!").build();
 
         let json = serde_json::to_string(&request).unwrap();
         assert!(json.contains("\"max_tokens\":1024"));

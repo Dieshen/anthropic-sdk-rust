@@ -18,7 +18,7 @@ use super::usage::Usage;
 /// A message response from the API.
 ///
 /// This is returned when creating a message via the Messages API.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Message {
     /// Unique identifier for this message.
     pub id: String,
@@ -86,7 +86,7 @@ impl Message {
 // =============================================================================
 
 /// A message in a conversation (for requests).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessageParam {
     /// The role of the message author.
     pub role: Role,
@@ -107,7 +107,7 @@ impl MessageParam {
 
     /// Creates a new user message with content blocks.
     #[must_use]
-    pub fn user_with_blocks(blocks: Vec<ContentBlockParam>) -> Self {
+    pub const fn user_with_blocks(blocks: Vec<ContentBlockParam>) -> Self {
         Self {
             role: Role::User,
             content: MessageContent::Blocks(blocks),
@@ -125,7 +125,7 @@ impl MessageParam {
 
     /// Creates a new assistant message with content blocks.
     #[must_use]
-    pub fn assistant_with_blocks(blocks: Vec<ContentBlockParam>) -> Self {
+    pub const fn assistant_with_blocks(blocks: Vec<ContentBlockParam>) -> Self {
         Self {
             role: Role::Assistant,
             content: MessageContent::Blocks(blocks),
@@ -134,7 +134,7 @@ impl MessageParam {
 }
 
 /// Content of a message (either text or blocks).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MessageContent {
     /// Simple text content.
@@ -148,7 +148,7 @@ pub enum MessageContent {
 // =============================================================================
 
 /// System prompt for a conversation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SystemPrompt {
     /// Simple text system prompt.
@@ -188,7 +188,7 @@ impl From<String> for SystemPrompt {
 }
 
 /// A block in a system prompt.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SystemPromptBlock {
     /// Block type (always "text").
     #[serde(rename = "type")]
@@ -266,7 +266,7 @@ pub struct MessageCreateParams {
 impl MessageCreateParams {
     /// Creates new message parameters.
     #[must_use]
-    pub fn new(model: Model, messages: Vec<MessageParam>, max_tokens: u32) -> Self {
+    pub const fn new(model: Model, messages: Vec<MessageParam>, max_tokens: u32) -> Self {
         Self {
             model,
             messages,
@@ -294,14 +294,14 @@ impl MessageCreateParams {
 
     /// Sets the temperature.
     #[must_use]
-    pub fn with_temperature(mut self, temperature: f64) -> Self {
+    pub const fn with_temperature(mut self, temperature: f64) -> Self {
         self.temperature = Some(temperature);
         self
     }
 
     /// Sets streaming mode.
     #[must_use]
-    pub fn with_stream(mut self, stream: bool) -> Self {
+    pub const fn with_stream(mut self, stream: bool) -> Self {
         self.stream = Some(stream);
         self
     }
@@ -339,7 +339,7 @@ impl MessageCreateParams {
 }
 
 /// Extended thinking configuration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ThinkingConfig {
     /// Type of thinking (always "enabled" to enable).
     #[serde(rename = "type")]
@@ -352,19 +352,15 @@ pub struct ThinkingConfig {
 /// Service tier request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ServiceTierRequest {
     /// Automatic tier selection.
+    #[default]
     Auto,
     /// Standard tier.
     Standard,
     /// Priority tier.
     Priority,
-}
-
-impl Default for ServiceTierRequest {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 // =============================================================================
@@ -422,14 +418,14 @@ impl MessageCreateParamsBuilder {
 
     /// Sets the temperature.
     #[must_use]
-    pub fn temperature(mut self, temperature: f64) -> Self {
+    pub const fn temperature(mut self, temperature: f64) -> Self {
         self.params.temperature = Some(temperature);
         self
     }
 
     /// Sets streaming mode.
     #[must_use]
-    pub fn stream(mut self, stream: bool) -> Self {
+    pub const fn stream(mut self, stream: bool) -> Self {
         self.params.stream = Some(stream);
         self
     }
@@ -482,7 +478,7 @@ mod tests {
         assert_eq!(msg.role, Role::User);
         match msg.content {
             MessageContent::Text(text) => assert_eq!(text, "Hello!"),
-            _ => panic!("Expected text content"),
+            MessageContent::Blocks(_) => panic!("Expected text content"),
         }
     }
 
@@ -541,7 +537,7 @@ mod tests {
         let prompt: SystemPrompt = "You are helpful.".into();
         match prompt {
             SystemPrompt::Text(text) => assert_eq!(text, "You are helpful."),
-            _ => panic!("Expected text"),
+            SystemPrompt::Blocks(_) => panic!("Expected text"),
         }
     }
 

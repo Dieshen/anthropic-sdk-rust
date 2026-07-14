@@ -57,7 +57,7 @@ const USER_AGENT: &str = concat!("anthropic-vertex-rust/", env!("CARGO_PKG_VERSI
 // =============================================================================
 
 /// Available Claude models on Vertex AI.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub enum VertexModel {
     /// Claude 3 Opus
     Claude3Opus,
@@ -68,6 +68,7 @@ pub enum VertexModel {
     /// Claude 3.5 Sonnet
     Claude35Sonnet,
     /// Claude 3.5 Sonnet v2
+    #[default]
     Claude35SonnetV2,
     /// Claude 3.5 Haiku
     Claude35Haiku,
@@ -557,7 +558,10 @@ impl VertexClient {
             status: status.as_u16(),
             error_type: "unknown".to_string(),
             message: if body.is_empty() {
-                status.canonical_reason().unwrap_or("Unknown error").to_string()
+                status
+                    .canonical_reason()
+                    .unwrap_or("Unknown error")
+                    .to_string()
             } else {
                 body
             },
@@ -725,12 +729,6 @@ impl VertexMessageParams {
     pub fn with_tools(mut self, tools: Vec<Tool>) -> Self {
         self.tools = Some(tools);
         self
-    }
-}
-
-impl Default for VertexModel {
-    fn default() -> Self {
-        Self::Claude35SonnetV2
     }
 }
 
@@ -1450,7 +1448,10 @@ mod tests {
         );
 
         let global_config = VertexConfig::new("global", "my-project");
-        assert_eq!(global_config.base_url(), "https://aiplatform.googleapis.com");
+        assert_eq!(
+            global_config.base_url(),
+            "https://aiplatform.googleapis.com"
+        );
     }
 
     #[test]
@@ -1459,7 +1460,7 @@ mod tests {
         assert_eq!(user_msg.role, Role::User);
         match user_msg.content {
             MessageContent::Text(text) => assert_eq!(text, "Hello!"),
-            _ => panic!("Expected text content"),
+            MessageContent::Blocks(_) => panic!("Expected text content"),
         }
 
         let assistant_msg = MessageParam::assistant("Hi there!");
@@ -1586,7 +1587,7 @@ mod tests {
         let prompt: SystemPrompt = "Be helpful".into();
         match prompt {
             SystemPrompt::Text(text) => assert_eq!(text, "Be helpful"),
-            _ => panic!("Expected text"),
+            SystemPrompt::Blocks(_) => panic!("Expected text"),
         }
     }
 

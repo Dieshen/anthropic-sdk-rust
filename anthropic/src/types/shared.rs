@@ -34,26 +34,21 @@ pub enum CacheControlType {
 }
 
 /// Time-to-live duration for cached content.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum CacheTtl {
     /// 5 minute cache duration.
     #[serde(rename = "5m")]
+    #[default]
     FiveMinutes,
     /// 1 hour cache duration.
     #[serde(rename = "1h")]
     OneHour,
 }
 
-impl Default for CacheTtl {
-    fn default() -> Self {
-        Self::FiveMinutes
-    }
-}
-
 impl CacheControl {
     /// Creates a new ephemeral cache control with default TTL (5 minutes).
     #[must_use]
-    pub fn ephemeral() -> Self {
+    pub const fn ephemeral() -> Self {
         Self {
             control_type: CacheControlType::Ephemeral,
             ttl: None,
@@ -62,7 +57,7 @@ impl CacheControl {
 
     /// Creates a new ephemeral cache control with 5 minute TTL.
     #[must_use]
-    pub fn ephemeral_5m() -> Self {
+    pub const fn ephemeral_5m() -> Self {
         Self {
             control_type: CacheControlType::Ephemeral,
             ttl: Some(CacheTtl::FiveMinutes),
@@ -71,7 +66,7 @@ impl CacheControl {
 
     /// Creates a new ephemeral cache control with 1 hour TTL.
     #[must_use]
-    pub fn ephemeral_1h() -> Self {
+    pub const fn ephemeral_1h() -> Self {
         Self {
             control_type: CacheControlType::Ephemeral,
             ttl: Some(CacheTtl::OneHour),
@@ -114,17 +109,13 @@ impl Metadata {
 /// Message role in a conversation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum Role {
     /// User message.
+    #[default]
     User,
     /// Assistant (Claude) message.
     Assistant,
-}
-
-impl Default for Role {
-    fn default() -> Self {
-        Self::User
-    }
 }
 
 // =============================================================================
@@ -243,7 +234,7 @@ pub enum ImageMediaType {
 impl ImageMediaType {
     /// Returns the MIME type string.
     #[must_use]
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Jpeg => "image/jpeg",
             Self::Png => "image/png",

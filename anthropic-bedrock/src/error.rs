@@ -97,7 +97,11 @@ impl std::error::Error for BedrockApiError {}
 impl BedrockApiError {
     /// Creates a new Bedrock API error.
     #[must_use]
-    pub fn new(status: StatusCode, error_type: impl Into<String>, message: impl Into<String>) -> Self {
+    pub fn new(
+        status: StatusCode,
+        error_type: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
         Self {
             status,
             error_type: error_type.into(),
@@ -159,8 +163,7 @@ impl BedrockApiError {
     /// Returns `true` if the model was not found.
     #[must_use]
     pub fn is_model_not_found(&self) -> bool {
-        self.status == StatusCode::NOT_FOUND
-            || self.error_type.to_lowercase().contains("model")
+        self.status == StatusCode::NOT_FOUND || self.error_type.to_lowercase().contains("model")
     }
 }
 

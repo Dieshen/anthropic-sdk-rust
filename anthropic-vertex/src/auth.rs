@@ -328,7 +328,13 @@ impl GoogleCredentials {
     ///
     /// This only works when running on Google Cloud infrastructure.
     pub async fn from_gce_metadata() -> Result<Self> {
-        Self::from_gce_metadata_with_scopes(&DEFAULT_SCOPES.iter().map(|&s| s.to_string()).collect::<Vec<_>>()).await
+        Self::from_gce_metadata_with_scopes(
+            &DEFAULT_SCOPES
+                .iter()
+                .map(|&s| s.to_string())
+                .collect::<Vec<_>>(),
+        )
+        .await
     }
 
     /// Creates credentials from GCE metadata service with custom scopes.
@@ -616,7 +622,7 @@ mod tests {
 
     fn create_test_service_account_key() -> serde_json::Value {
         // This is a fake RSA key for testing - it's intentionally invalid for production
-        let fake_private_key = r#"-----BEGIN RSA PRIVATE KEY-----
+        let fake_private_key = r"-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF8PbnGy0AHB7MvnM2eMzWryFlWFV
 cR7CpQgVPpJwyhHgpHa4bM9G9A3wEiCwDgF5fmL5gVHBVVHEPIYr2mVHLt0ByJCB
 Ts/ikJNJnRi1RlcTGlbLJn2RYxsAAvoaWLmHoCPQgPt/0rkVFWwLEJqjT+FXXxLU
@@ -642,7 +648,7 @@ K9lWDaRt5j3mzMZ7I7glyMC8VPlNZMSYemBLB9e0Bgn9BaD+g1qLqP/ImmJYNqWF
 OQJY1QKBgE0M3Kq3O0f+n9Y3Y9bDJlJK5UXreVNVqXg6Freu01k/1M/rl0fPdqLF
 J/xMx+BqC9LKmbV2IZfN5x0pVSjLPgHy1VEXbCR3YBKhJR4zNAkR0ED9mic7cBGO
 v2plKta7feKH6MFXAB9akHLVk/b9cLDy2B8r9bb8L0F6fpmC/fMT
------END RSA PRIVATE KEY-----"#;
+-----END RSA PRIVATE KEY-----";
 
         serde_json::json!({
             "type": "service_account",
@@ -686,16 +692,15 @@ v2plKta7feKH6MFXAB9akHLVk/b9cLDy2B8r9bb8L0F6fpmC/fMT
         write!(temp_file, "{}", serde_json::to_string(&key).unwrap()).unwrap();
 
         let custom_scopes = &["https://www.googleapis.com/auth/compute"];
-        let creds =
-            GoogleCredentials::from_service_account_file_with_scopes(temp_file.path(), custom_scopes)
-                .await
-                .unwrap();
+        let creds = GoogleCredentials::from_service_account_file_with_scopes(
+            temp_file.path(),
+            custom_scopes,
+        )
+        .await
+        .unwrap();
 
         assert_eq!(creds.scopes().len(), 1);
-        assert_eq!(
-            creds.scopes()[0],
-            "https://www.googleapis.com/auth/compute"
-        );
+        assert_eq!(creds.scopes()[0], "https://www.googleapis.com/auth/compute");
     }
 
     #[tokio::test]
@@ -774,8 +779,8 @@ v2plKta7feKH6MFXAB9akHLVk/b9cLDy2B8r9bb8L0F6fpmC/fMT
             iss: "test@example.iam.gserviceaccount.com".to_string(),
             scope: "https://www.googleapis.com/auth/cloud-platform".to_string(),
             aud: TOKEN_ENDPOINT.to_string(),
-            iat: 1234567890,
-            exp: 1234571490,
+            iat: 1_234_567_890,
+            exp: 1_234_571_490,
         };
 
         let json = serde_json::to_string(&claims).unwrap();

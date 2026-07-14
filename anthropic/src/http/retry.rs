@@ -95,7 +95,7 @@ impl RetryConfig {
     ///
     /// This is useful for critical operations that must succeed.
     #[must_use]
-    pub fn aggressive() -> Self {
+    pub const fn aggressive() -> Self {
         Self {
             max_retries: 5,
             initial_delay: Duration::from_millis(250),
@@ -110,7 +110,7 @@ impl RetryConfig {
     ///
     /// This is useful for operations where you want to fail fast.
     #[must_use]
-    pub fn conservative() -> Self {
+    pub const fn conservative() -> Self {
         Self {
             max_retries: 1,
             initial_delay: Duration::from_secs(1),
@@ -136,56 +136,64 @@ pub struct RetryConfigBuilder {
 impl RetryConfigBuilder {
     /// Sets the maximum number of retry attempts.
     #[must_use]
-    pub fn max_retries(mut self, max_retries: u32) -> Self {
+    pub const fn max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = Some(max_retries);
         self
     }
 
     /// Sets the initial delay in milliseconds.
     #[must_use]
-    pub fn initial_delay_ms(mut self, ms: u64) -> Self {
+    pub const fn initial_delay_ms(mut self, ms: u64) -> Self {
         self.initial_delay_ms = Some(ms);
         self
     }
 
     /// Sets the initial delay as a Duration.
+    ///
+    /// If `duration` represents more milliseconds than fit in a `u64`
+    /// (over 584 million years), the value saturates to `u64::MAX` rather
+    /// than silently truncating.
     #[must_use]
     pub fn initial_delay(mut self, duration: Duration) -> Self {
-        self.initial_delay_ms = Some(duration.as_millis() as u64);
+        self.initial_delay_ms = Some(u64::try_from(duration.as_millis()).unwrap_or(u64::MAX));
         self
     }
 
     /// Sets the maximum delay in milliseconds.
     #[must_use]
-    pub fn max_delay_ms(mut self, ms: u64) -> Self {
+    pub const fn max_delay_ms(mut self, ms: u64) -> Self {
         self.max_delay_ms = Some(ms);
         self
     }
 
     /// Sets the maximum delay as a Duration.
+    ///
+    /// If `duration` represents more milliseconds than fit in a `u64`
+    /// (over 584 million years), the value saturates to `u64::MAX` rather
+    /// than silently truncating.
     #[must_use]
     pub fn max_delay(mut self, duration: Duration) -> Self {
-        self.max_delay_ms = Some(duration.as_millis() as u64);
+        self.max_delay_ms = Some(u64::try_from(duration.as_millis()).unwrap_or(u64::MAX));
         self
     }
 
     /// Sets the backoff multiplier.
     #[must_use]
-    pub fn multiplier(mut self, multiplier: f64) -> Self {
+    pub const fn multiplier(mut self, multiplier: f64) -> Self {
         self.multiplier = Some(multiplier);
         self
     }
 
     /// Sets the jitter factor (0.0 to 1.0).
     #[must_use]
-    pub fn jitter_factor(mut self, factor: f64) -> Self {
+    pub const fn jitter_factor(mut self, factor: f64) -> Self {
         self.jitter_factor = Some(factor.clamp(0.0, 1.0));
         self
     }
 
     /// Sets whether to respect the Retry-After header.
     #[must_use]
-    pub fn respect_retry_after(mut self, respect: bool) -> Self {
+    pub const fn respect_retry_after(mut self, respect: bool) -> Self {
         self.respect_retry_after = Some(respect);
         self
     }
@@ -250,7 +258,7 @@ pub struct ExponentialBackoff {
 impl ExponentialBackoff {
     /// Creates a new exponential backoff policy with the given configuration.
     #[must_use]
-    pub fn new(config: RetryConfig) -> Self {
+    pub const fn new(config: RetryConfig) -> Self {
         Self { config }
     }
 
@@ -274,22 +282,40 @@ impl ExponentialBackoff {
             }
         }
 
-        // Calculate exponential backoff
-        let base_delay_ms = self.config.initial_delay.as_millis() as f64
-            * self.config.multiplier.powi(attempt.saturating_sub(1) as i32);
+        // Calculate exponential backoff.
+        //
+        // `initial_delay`/`max_delay` are retry-backoff durations (expected
+        // to be milliseconds to minutes); converting their millisecond count
+        // to `f64` for this approximate exponential/jitter arithmetic cannot
+        // lose meaningful precision short of a multi-millennia delay, which
+        // is not a value any caller configures.
+        #[allow(clippy::cast_precision_loss)]
+        let initial_delay_ms = self.config.initial_delay.as_millis() as f64;
+        // `attempt` is a retry-attempt counter, realistically well under
+        // `i32::MAX`; saturate rather than wrap in the pathological case.
+        let exponent = i32::try_from(attempt.saturating_sub(1)).unwrap_or(i32::MAX);
+        let base_delay_ms = initial_delay_ms * self.config.multiplier.powi(exponent);
 
-        let capped_delay_ms = base_delay_ms.min(self.config.max_delay.as_millis() as f64);
+        #[allow(clippy::cast_precision_loss)]
+        let max_delay_ms = self.config.max_delay.as_millis() as f64;
+        let capped_delay_ms = base_delay_ms.min(max_delay_ms);
 
         // Add jitter
         let jitter_ms = calculate_jitter(capped_delay_ms, self.config.jitter_factor);
-        let final_delay_ms = (capped_delay_ms + jitter_ms).max(0.0);
+        // `capped_delay_ms` is bounded by `max_delay_ms` above and jitter is
+        // a fraction of it, so `final_delay_ms` stays well within `u64`
+        // range for any realistic config; the `.max(0.0)` just above rules
+        // out sign loss, and truncating the fractional part is intentional
+        // (we only need whole-millisecond resolution).
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let final_delay_ms = (capped_delay_ms + jitter_ms).max(0.0) as u64;
 
-        Duration::from_millis(final_delay_ms as u64)
+        Duration::from_millis(final_delay_ms)
     }
 
     /// Returns a reference to the configuration.
     #[must_use]
-    pub fn config(&self) -> &RetryConfig {
+    pub const fn config(&self) -> &RetryConfig {
         &self.config
     }
 }
@@ -335,7 +361,7 @@ impl RetryPolicy for ExponentialBackoff {
 ///
 /// # Returns
 ///
-/// A random jitter value between -jitter_factor * delay_ms and +jitter_factor * delay_ms
+/// A random jitter value between -`jitter_factor` * `delay_ms` and +`jitter_factor` * `delay_ms`
 fn calculate_jitter(delay_ms: f64, jitter_factor: f64) -> f64 {
     use std::collections::hash_map::RandomState;
     use std::hash::{BuildHasher, Hasher};
@@ -351,10 +377,15 @@ fn calculate_jitter(delay_ms: f64, jitter_factor: f64) -> f64 {
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |d| d.as_nanos()),
     );
-    hasher.write_u64(std::process::id() as u64);
+    hasher.write_u64(u64::from(std::process::id()));
 
     let hash = hasher.finish();
-    let random_factor = (hash as f64 / u64::MAX as f64) * 2.0 - 1.0; // Range: -1.0 to 1.0
+    // `hash` is treated as a source of pseudo-randomness, not an exact
+    // value; losing low-order precision converting it (and `u64::MAX`) to
+    // `f64` has no effect on the intended use (a roughly-uniform jitter
+    // factor in [-1.0, 1.0]).
+    #[allow(clippy::cast_precision_loss)]
+    let random_factor = (hash as f64 / u64::MAX as f64).mul_add(2.0, -1.0); // Range: -1.0 to 1.0
 
     random_factor * jitter_factor * delay_ms
 }
@@ -369,7 +400,7 @@ pub struct ConstantBackoff {
 impl ConstantBackoff {
     /// Creates a new constant backoff policy.
     #[must_use]
-    pub fn new(max_retries: u32, delay: Duration) -> Self {
+    pub const fn new(max_retries: u32, delay: Duration) -> Self {
         Self { max_retries, delay }
     }
 }
@@ -427,8 +458,14 @@ mod tests {
     fn test_retry_config_default() {
         let config = RetryConfig::default();
         assert_eq!(config.max_retries, DEFAULT_MAX_RETRIES);
-        assert_eq!(config.initial_delay, Duration::from_millis(DEFAULT_INITIAL_DELAY_MS));
-        assert_eq!(config.max_delay, Duration::from_millis(DEFAULT_MAX_DELAY_MS));
+        assert_eq!(
+            config.initial_delay,
+            Duration::from_millis(DEFAULT_INITIAL_DELAY_MS)
+        );
+        assert_eq!(
+            config.max_delay,
+            Duration::from_millis(DEFAULT_MAX_DELAY_MS)
+        );
         assert!((config.multiplier - DEFAULT_MULTIPLIER).abs() < f64::EPSILON);
     }
 
@@ -443,8 +480,8 @@ mod tests {
             .build();
 
         assert_eq!(config.max_retries, 5);
-        assert_eq!(config.initial_delay, Duration::from_millis(1000));
-        assert_eq!(config.max_delay, Duration::from_millis(30000));
+        assert_eq!(config.initial_delay, Duration::from_secs(1));
+        assert_eq!(config.max_delay, Duration::from_secs(30));
         assert!((config.multiplier - 1.5).abs() < f64::EPSILON);
         assert!((config.jitter_factor - 0.2).abs() < f64::EPSILON);
     }
@@ -487,7 +524,7 @@ mod tests {
     fn test_exponential_backoff_delay_calculation() {
         let config = RetryConfig {
             max_retries: 5,
-            initial_delay: Duration::from_millis(1000),
+            initial_delay: Duration::from_secs(1),
             max_delay: Duration::from_secs(30),
             multiplier: 2.0,
             jitter_factor: 0.0, // No jitter for predictable testing
@@ -497,15 +534,15 @@ mod tests {
 
         // Attempt 1: 1000ms
         let delay1 = policy.calculate_delay(1, None);
-        assert_eq!(delay1, Duration::from_millis(1000));
+        assert_eq!(delay1, Duration::from_secs(1));
 
         // Attempt 2: 2000ms (1000 * 2^1)
         let delay2 = policy.calculate_delay(2, None);
-        assert_eq!(delay2, Duration::from_millis(2000));
+        assert_eq!(delay2, Duration::from_secs(2));
 
         // Attempt 3: 4000ms (1000 * 2^2)
         let delay3 = policy.calculate_delay(3, None);
-        assert_eq!(delay3, Duration::from_millis(4000));
+        assert_eq!(delay3, Duration::from_secs(4));
     }
 
     #[test]
@@ -585,7 +622,7 @@ mod tests {
         // Due to randomness, we run multiple iterations
         for _ in 0..100 {
             let jitter = calculate_jitter(1000.0, 0.25);
-            assert!(jitter >= -250.0 && jitter <= 250.0);
+            assert!((-250.0..=250.0).contains(&jitter));
         }
     }
 }
