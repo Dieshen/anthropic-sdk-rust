@@ -144,15 +144,11 @@ impl ModelInfo {
 /// Currently, all models have type "model".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ModelType {
     /// A model object.
+    #[default]
     Model,
-}
-
-impl Default for ModelType {
-    fn default() -> Self {
-        Self::Model
-    }
 }
 
 // =============================================================================
@@ -234,7 +230,7 @@ impl ModelsListParams {
         Self::default()
     }
 
-    /// Sets the after_id cursor for forward pagination.
+    /// Sets the `after_id` cursor for forward pagination.
     ///
     /// Returns results immediately after the specified ID.
     #[must_use]
@@ -243,7 +239,7 @@ impl ModelsListParams {
         self
     }
 
-    /// Sets the before_id cursor for backward pagination.
+    /// Sets the `before_id` cursor for backward pagination.
     ///
     /// Returns results immediately before the specified ID.
     #[must_use]
@@ -256,7 +252,7 @@ impl ModelsListParams {
     ///
     /// Valid range is 1 to 1000. Defaults to 20.
     #[must_use]
-    pub fn with_limit(mut self, limit: i64) -> Self {
+    pub const fn with_limit(mut self, limit: i64) -> Self {
         self.limit = Some(limit);
         self
     }
@@ -415,7 +411,7 @@ pub struct Models {
 impl Models {
     /// Creates a new Models resource with the given client.
     #[must_use]
-    pub fn new(client: Anthropic) -> Self {
+    pub const fn new(client: Anthropic) -> Self {
         Self { client }
     }
 
@@ -432,7 +428,7 @@ impl Models {
     /// # Errors
     ///
     /// Returns an error if:
-    /// - The model_id is empty
+    /// - The `model_id` is empty
     /// - The model does not exist (404)
     /// - Authentication fails (401)
     /// - The request fails for any other reason
@@ -451,7 +447,7 @@ impl Models {
             ));
         }
 
-        let path = format!("{}/{}", MODELS_PATH, model_id);
+        let path = format!("{MODELS_PATH}/{model_id}");
         self.client.get(&path).await
     }
 
@@ -810,7 +806,7 @@ mod tests {
             last_id: None,
         };
 
-        let sonnets = response.filter(|m| m.is_sonnet());
+        let sonnets = response.filter(super::ModelInfo::is_sonnet);
         assert_eq!(sonnets.len(), 1);
         assert!(sonnets[0].is_sonnet());
     }
@@ -854,8 +850,7 @@ mod tests {
             last_id: None,
         };
 
-        let models: Vec<ModelInfo> = response.into_iter().collect();
-        assert_eq!(models.len(), 2);
+        assert_eq!(response.into_iter().count(), 2);
     }
 
     #[test]

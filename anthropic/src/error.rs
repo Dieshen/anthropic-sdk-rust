@@ -102,8 +102,7 @@ impl Error {
                 // Retry on connection errors and timeouts
                 http_err.is_connect() || http_err.is_timeout()
             }
-            Self::RateLimited { .. } => true,
-            Self::Timeout(_) => true,
+            Self::RateLimited { .. } | Self::Timeout(_) => true,
             _ => false,
         }
     }
@@ -131,7 +130,7 @@ impl Error {
 
     /// Returns the retry-after duration if this is a rate limit error.
     #[must_use]
-    pub fn retry_after(&self) -> Option<Duration> {
+    pub const fn retry_after(&self) -> Option<Duration> {
         match self {
             Self::RateLimited { retry_after, .. } => *retry_after,
             Self::Api(api_err) => api_err.retry_after,
@@ -196,7 +195,7 @@ impl ApiError {
 
     /// Sets the retry-after duration.
     #[must_use]
-    pub fn with_retry_after(mut self, retry_after: Duration) -> Self {
+    pub const fn with_retry_after(mut self, retry_after: Duration) -> Self {
         self.retry_after = Some(retry_after);
         self
     }
@@ -247,6 +246,7 @@ impl ApiError {
 /// Error types returned by the Anthropic API.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ApiErrorType {
     /// Invalid request parameters.
     InvalidRequestError,
@@ -264,6 +264,7 @@ pub enum ApiErrorType {
     ApiError,
     /// Unknown error type.
     #[serde(other)]
+    #[default]
     Unknown,
 }
 
@@ -280,12 +281,6 @@ impl fmt::Display for ApiErrorType {
             Self::Unknown => "unknown",
         };
         write!(f, "{s}")
-    }
-}
-
-impl Default for ApiErrorType {
-    fn default() -> Self {
-        Self::Unknown
     }
 }
 

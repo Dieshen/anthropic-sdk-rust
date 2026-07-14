@@ -61,19 +61,15 @@ pub struct ServerToolUsage {
 /// Service tier for request processing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ServiceTier {
     /// Standard processing tier.
+    #[default]
     Standard,
     /// Priority processing tier.
     Priority,
     /// Batch processing tier.
     Batch,
-}
-
-impl Default for ServiceTier {
-    fn default() -> Self {
-        Self::Standard
-    }
 }
 
 /// Response from the token counting endpoint.
@@ -96,19 +92,23 @@ impl Usage {
 
     /// Returns the total number of tokens (input + output).
     #[must_use]
-    pub fn total_tokens(&self) -> i64 {
+    pub const fn total_tokens(&self) -> i64 {
         self.input_tokens + self.output_tokens
     }
 
     /// Returns the total input tokens including cache.
     #[must_use]
-    pub fn total_input_tokens(&self) -> i64 {
+    pub const fn total_input_tokens(&self) -> i64 {
         self.input_tokens + self.cache_creation_input_tokens + self.cache_read_input_tokens
     }
 }
 
-/// Helper function for serde skip_serializing_if
-fn is_zero(val: &i64) -> bool {
+/// Helper function for serde `skip_serializing_if`
+// serde's `skip_serializing_if = "..."` invokes this as `fn(&T) -> bool`, so
+// the by-reference signature is required by the calling convention, not a
+// style choice; taking `i64` by value would not compile as a callback here.
+#[allow(clippy::trivially_copy_pass_by_ref)]
+const fn is_zero(val: &i64) -> bool {
     *val == 0
 }
 

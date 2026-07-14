@@ -115,7 +115,7 @@ impl<T: DeserializeOwned> ApiResponse<T> {
         } else {
             // Handle error response
             let bytes = response.bytes().await?;
-            let api_error = parse_error_response(status, &headers, &bytes, request_id)?;
+            let api_error = parse_error_response(status, &headers, &bytes, request_id);
             Err(Error::Api(api_error))
         }
     }
@@ -249,7 +249,7 @@ fn parse_error_response(
     headers: &HeaderMap,
     body: &Bytes,
     request_id: Option<String>,
-) -> Result<ApiError> {
+) -> ApiError {
     let retry_after = parse_retry_after(headers);
 
     // Try to parse as structured error response
@@ -269,7 +269,7 @@ fn parse_error_response(
             api_error = api_error.with_details(extra);
         }
 
-        return Ok(api_error);
+        return api_error;
     }
 
     // Fallback: Create error from status code and body
@@ -286,12 +286,12 @@ fn parse_error_response(
         api_error = api_error.with_retry_after(retry);
     }
 
-    Ok(api_error)
+    api_error
 }
 
 /// Maps HTTP status codes to error types.
 #[must_use]
-fn error_type_from_status(status: StatusCode) -> ApiErrorType {
+const fn error_type_from_status(status: StatusCode) -> ApiErrorType {
     match status.as_u16() {
         400 => ApiErrorType::InvalidRequestError,
         401 => ApiErrorType::AuthenticationError,
@@ -307,6 +307,11 @@ fn error_type_from_status(status: StatusCode) -> ApiErrorType {
 /// Reads the response body as bytes.
 ///
 /// This is a convenience function for reading the entire response body.
+///
+/// # Errors
+///
+/// Returns an error if the body cannot be fully read (for example, the
+/// connection is dropped mid-transfer).
 pub async fn read_body(response: Response) -> Result<Bytes> {
     Ok(response.bytes().await?)
 }
@@ -314,6 +319,11 @@ pub async fn read_body(response: Response) -> Result<Bytes> {
 /// Reads the response body as a string.
 ///
 /// This is a convenience function for reading the response body as UTF-8 text.
+///
+/// # Errors
+///
+/// Returns an error if the body cannot be fully read, or if the body is not
+/// valid UTF-8.
 pub async fn read_body_string(response: Response) -> Result<String> {
     Ok(response.text().await?)
 }
@@ -354,7 +364,7 @@ mod tests {
         headers.insert(HEADER_RETRY_AFTER_MS, HeaderValue::from_static("5000"));
 
         let retry_after = parse_retry_after(&headers);
-        assert_eq!(retry_after, Some(Duration::from_millis(5000)));
+        assert_eq!(retry_after, Some(Duration::from_secs(5)));
     }
 
     #[test]
@@ -365,7 +375,7 @@ mod tests {
 
         let retry_after = parse_retry_after(&headers);
         // Milliseconds header should take precedence
-        assert_eq!(retry_after, Some(Duration::from_millis(5000)));
+        assert_eq!(retry_after, Some(Duration::from_secs(5)));
     }
 
     #[test]
@@ -428,8 +438,7 @@ mod tests {
             &headers,
             &Bytes::from_static(body),
             Some("req_test123".to_string()),
-        )
-        .unwrap();
+        );
 
         assert_eq!(error.status, StatusCode::BAD_REQUEST);
         assert_eq!(error.error_type, ApiErrorType::InvalidRequestError);
@@ -447,8 +456,7 @@ mod tests {
             &headers,
             &Bytes::from_static(body),
             None,
-        )
-        .unwrap();
+        );
 
         assert_eq!(error.status, StatusCode::INTERNAL_SERVER_ERROR);
         assert_eq!(error.error_type, ApiErrorType::ApiError);

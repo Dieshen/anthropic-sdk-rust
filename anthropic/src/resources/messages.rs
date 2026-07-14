@@ -99,7 +99,7 @@ impl Messages {
     ///
     /// This is typically called via `client.messages()` rather than directly.
     #[must_use]
-    pub fn new(client: Anthropic) -> Self {
+    pub const fn new(client: Anthropic) -> Self {
         Self { client }
     }
 
@@ -279,7 +279,7 @@ impl Messages {
 ///     vec![MessageParam::user("Hello!")],
 /// );
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessageCountTokensParams {
     /// The model to use for token counting.
     pub model: Model,
@@ -324,7 +324,7 @@ impl MessageCountTokensParams {
     /// );
     /// ```
     #[must_use]
-    pub fn new(model: Model, messages: Vec<MessageParam>) -> Self {
+    pub const fn new(model: Model, messages: Vec<MessageParam>) -> Self {
         Self {
             model,
             messages,
@@ -440,7 +440,8 @@ impl MessageStream {
     ///     println!("Final response: {}", message.text());
     /// }
     /// ```
-    pub fn final_message(&self) -> Option<Message> {
+    #[must_use]
+    pub const fn final_message(&self) -> Option<Message> {
         // This would be implemented by accumulating message parts during streaming
         // For now, return None as we'd need to track state
         None
@@ -493,7 +494,7 @@ impl Stream for MessageStream {
 ///
 /// These events follow the Server-Sent Events (SSE) protocol and represent
 /// different stages of message generation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum StreamEvent {
     /// The message stream has started.
@@ -546,7 +547,7 @@ pub enum StreamEvent {
 }
 
 /// Content block start information.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlockStart {
     /// A text content block is starting.
@@ -571,7 +572,7 @@ pub enum ContentBlockStart {
 }
 
 /// Delta update for content blocks.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentDelta {
     /// Text delta.
@@ -596,7 +597,7 @@ impl ContentDelta {
     #[must_use]
     pub fn text(&self) -> Option<&str> {
         match self {
-            ContentDelta::TextDelta { text } => Some(text),
+            Self::TextDelta { text } => Some(text),
             _ => None,
         }
     }
@@ -605,7 +606,7 @@ impl ContentDelta {
     #[must_use]
     pub fn partial_json(&self) -> Option<&str> {
         match self {
-            ContentDelta::InputJsonDelta { partial_json } => Some(partial_json),
+            Self::InputJsonDelta { partial_json } => Some(partial_json),
             _ => None,
         }
     }
@@ -614,14 +615,14 @@ impl ContentDelta {
     #[must_use]
     pub fn thinking(&self) -> Option<&str> {
         match self {
-            ContentDelta::ThinkingDelta { thinking } => Some(thinking),
+            Self::ThinkingDelta { thinking } => Some(thinking),
             _ => None,
         }
     }
 }
 
 /// Delta update for message metadata.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessageDeltaContent {
     /// The stop reason, if the message has stopped.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -633,7 +634,7 @@ pub struct MessageDeltaContent {
 }
 
 /// Error information from a streaming error event.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StreamError {
     /// Error type.
     #[serde(rename = "type")]
@@ -717,7 +718,7 @@ impl Anthropic {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{ContentBlock, Role, StopReason, Usage};
+    use crate::types::StopReason;
 
     #[test]
     fn test_message_count_tokens_params_new() {

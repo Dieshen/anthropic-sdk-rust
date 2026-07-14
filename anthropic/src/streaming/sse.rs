@@ -1,6 +1,6 @@
 //! Server-Sent Events (SSE) decoder.
 //!
-//! This module implements an SSE decoder following the W3C EventSource specification.
+//! This module implements an SSE decoder following the W3C `EventSource` specification.
 //! It parses the `text/event-stream` format used by the Anthropic API.
 //!
 //! # SSE Format
@@ -22,7 +22,7 @@ use std::fmt;
 /// An SSE event parsed from the stream.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SseEvent {
-    /// The event type (e.g., "message_start", "content_block_delta").
+    /// The event type (e.g., "`message_start`", "`content_block_delta`").
     pub event_type: String,
     /// The event data (typically JSON).
     pub data: String,
@@ -105,7 +105,7 @@ impl SseDecoder {
 
     /// Creates a new SSE decoder with default settings.
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             buffer: String::new(),
             current_event_type: None,
@@ -116,7 +116,7 @@ impl SseDecoder {
 
     /// Creates a new SSE decoder with a custom maximum buffer size.
     #[must_use]
-    pub fn with_max_buffer_size(max_size: usize) -> Self {
+    pub const fn with_max_buffer_size(max_size: usize) -> Self {
         Self {
             buffer: String::new(),
             current_event_type: None,
@@ -159,7 +159,7 @@ impl SseDecoder {
             let line = line.strip_suffix('\r').unwrap_or(&line);
 
             // Process the line
-            if let Some(event) = self.process_line(line)? {
+            if let Some(event) = self.process_line(line) {
                 events.push(event);
             }
         }
@@ -171,28 +171,25 @@ impl SseDecoder {
     ///
     /// Returns `Some(event)` if the line completes an event (empty line),
     /// `None` otherwise.
-    fn process_line(&mut self, line: &str) -> Result<Option<SseEvent>, SseError> {
+    fn process_line(&mut self, line: &str) -> Option<SseEvent> {
         // Empty line dispatches the current event
         if line.is_empty() {
-            return Ok(self.dispatch_event());
+            return self.dispatch_event();
         }
 
         // Comment lines start with ':' and are ignored
         if line.starts_with(':') {
-            return Ok(None);
+            return None;
         }
 
         // Parse field:value
-        let (field, value) = if let Some(colon_pos) = line.find(':') {
+        let (field, value) = line.find(':').map_or((line, ""), |colon_pos| {
             let field = &line[..colon_pos];
             let value = &line[colon_pos + 1..];
             // Skip optional space after colon
             let value = value.strip_prefix(' ').unwrap_or(value);
             (field, value)
-        } else {
-            // Line without colon - field name is entire line, value is empty
-            (line, "")
-        };
+        });
 
         match field {
             "event" => {
@@ -201,17 +198,14 @@ impl SseDecoder {
             "data" => {
                 self.current_data.push(value.to_string());
             }
-            "id" | "retry" => {
-                // These are valid SSE fields but we don't use them
-                // id: sets the last event ID
-                // retry: sets reconnection time in milliseconds
-            }
-            _ => {
-                // Unknown fields are ignored per SSE spec
-            }
+            // "id" and "retry" are valid SSE fields but we don't use them
+            // (id: sets the last event ID; retry: reconnection time in ms).
+            // Unknown fields are ignored per the SSE spec, same as these,
+            // so both are handled by the wildcard arm below.
+            _ => {}
         }
 
-        Ok(None)
+        None
     }
 
     /// Dispatches the accumulated event if data is present.
@@ -256,7 +250,7 @@ impl SseDecoder {
         if !self.buffer.is_empty() {
             let remaining = std::mem::take(&mut self.buffer);
             for line in remaining.lines() {
-                let _ = self.process_line(line);
+                self.process_line(line);
             }
         }
 

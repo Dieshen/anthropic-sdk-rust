@@ -1,12 +1,12 @@
-//! AWS EventStream decoder for Bedrock streaming responses.
+//! AWS `EventStream` decoder for Bedrock streaming responses.
 //!
-//! AWS Bedrock uses the AWS EventStream binary protocol for streaming responses,
+//! AWS Bedrock uses the AWS `EventStream` binary protocol for streaming responses,
 //! which is different from the SSE (Server-Sent Events) format used by the direct
-//! Anthropic API. This module provides a decoder for parsing EventStream frames.
+//! Anthropic API. This module provides a decoder for parsing `EventStream` frames.
 //!
-//! # EventStream Format
+//! # `EventStream` Format
 //!
-//! Each EventStream message has the following structure:
+//! Each `EventStream` message has the following structure:
 //!
 //! ```text
 //! ┌─────────────────────────────────────────────────────────────┐
@@ -70,7 +70,7 @@ use thiserror::Error;
 /// Minimum frame size (prelude + message CRC).
 const MIN_FRAME_SIZE: usize = 16;
 
-/// Prelude size (total_len + headers_len + prelude_crc).
+/// Prelude size (`total_len` + `headers_len` + `prelude_crc`).
 const PRELUDE_SIZE: usize = 12;
 
 /// Message CRC size.
@@ -94,7 +94,7 @@ mod header_types {
 // Error Types
 // =============================================================================
 
-/// Errors that can occur during EventStream decoding.
+/// Errors that can occur during `EventStream` decoding.
 #[derive(Debug, Error)]
 pub enum EventStreamError {
     /// Not enough data to parse a complete frame.
@@ -136,14 +136,14 @@ pub enum EventStreamError {
     Utf8Error(#[from] std::string::FromUtf8Error),
 }
 
-/// Result type for EventStream operations.
+/// Result type for `EventStream` operations.
 pub type Result<T> = std::result::Result<T, EventStreamError>;
 
 // =============================================================================
 // Event Types
 // =============================================================================
 
-/// A decoded EventStream event.
+/// A decoded `EventStream` event.
 #[derive(Debug, Clone)]
 pub enum Event {
     /// A message event containing Claude streaming data.
@@ -152,10 +152,10 @@ pub enum Event {
     Exception(ExceptionEvent),
 }
 
-/// A message event from the EventStream.
+/// A message event from the `EventStream`.
 #[derive(Debug, Clone)]
 pub struct MessageEvent {
-    /// The event type (e.g., "message_start", "content_block_delta").
+    /// The event type (e.g., "`message_start`", "`content_block_delta`").
     pub event_type: String,
     /// The decoded JSON payload.
     pub payload: String,
@@ -163,7 +163,7 @@ pub struct MessageEvent {
     pub headers: HashMap<String, HeaderValue>,
 }
 
-/// An exception event from the EventStream.
+/// An exception event from the `EventStream`.
 #[derive(Debug, Clone)]
 pub struct ExceptionEvent {
     /// The exception type.
@@ -172,7 +172,7 @@ pub struct ExceptionEvent {
     pub message: String,
 }
 
-/// Header value types in EventStream.
+/// Header value types in `EventStream`.
 #[derive(Debug, Clone)]
 pub enum HeaderValue {
     /// Boolean true.
@@ -212,7 +212,7 @@ impl HeaderValue {
 // Raw Frame
 // =============================================================================
 
-/// A raw EventStream frame before event interpretation.
+/// A raw `EventStream` frame before event interpretation.
 #[derive(Debug, Clone)]
 pub struct RawFrame {
     /// Headers from the frame.
@@ -236,7 +236,7 @@ struct BedrockChunkPayload {
 // EventStream Decoder
 // =============================================================================
 
-/// Decoder for AWS EventStream binary protocol.
+/// Decoder for AWS `EventStream` binary protocol.
 ///
 /// This decoder maintains an internal buffer and can handle partial frames
 /// that span multiple `decode` calls.
@@ -268,7 +268,7 @@ impl Default for EventStreamDecoder {
 }
 
 impl EventStreamDecoder {
-    /// Creates a new EventStream decoder.
+    /// Creates a new `EventStream` decoder.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -276,7 +276,7 @@ impl EventStreamDecoder {
         }
     }
 
-    /// Decodes raw bytes into EventStream events.
+    /// Decodes raw bytes into `EventStream` events.
     ///
     /// This method accumulates data in an internal buffer and returns
     /// events as complete frames are received. Partial frames are buffered
@@ -299,7 +299,7 @@ impl EventStreamDecoder {
         let mut events = Vec::new();
 
         while let Some(frame) = self.try_decode_frame()? {
-            if let Some(event) = self.frame_to_event(frame)? {
+            if let Some(event) = Self::frame_to_event(frame)? {
                 events.push(event);
             }
         }
@@ -319,6 +319,10 @@ impl EventStreamDecoder {
     /// # Returns
     ///
     /// A vector of decoded raw frames.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a frame is malformed or CRC validation fails.
     pub fn decode_frames(&mut self, data: &[u8]) -> Result<Vec<RawFrame>> {
         self.buffer.extend_from_slice(data);
         let mut frames = Vec::new();
@@ -365,8 +369,7 @@ impl EventStreamDecoder {
         // Validate minimum frame size
         if total_length < MIN_FRAME_SIZE {
             return Err(EventStreamError::InvalidFrame(format!(
-                "frame too small: {} bytes",
-                total_length
+                "frame too small: {total_length} bytes"
             )));
         }
 
@@ -379,11 +382,14 @@ impl EventStreamDecoder {
         let frame_bytes = self.buffer.split_to(total_length);
 
         // Parse the frame
-        self.parse_frame(&frame_bytes)
+        Self::parse_frame(&frame_bytes)
     }
 
     /// Parses a complete frame from bytes.
-    fn parse_frame(&self, frame: &[u8]) -> Result<Option<RawFrame>> {
+    ///
+    /// Associated function (no `self`): it is a pure function of `frame`
+    /// and is private to this module, so this is not a public API change.
+    fn parse_frame(frame: &[u8]) -> Result<Option<RawFrame>> {
         let total_length = u32::from_be_bytes([frame[0], frame[1], frame[2], frame[3]]) as usize;
         let headers_length = u32::from_be_bytes([frame[4], frame[5], frame[6], frame[7]]) as usize;
         let prelude_crc = u32::from_be_bytes([frame[8], frame[9], frame[10], frame[11]]);
@@ -417,7 +423,7 @@ impl EventStreamDecoder {
         // Parse headers
         let headers_start = PRELUDE_SIZE;
         let headers_end = headers_start + headers_length;
-        let headers = self.parse_headers(&frame[headers_start..headers_end])?;
+        let headers = Self::parse_headers(&frame[headers_start..headers_end])?;
 
         // Extract payload
         let payload_start = headers_end;
@@ -428,7 +434,10 @@ impl EventStreamDecoder {
     }
 
     /// Parses headers from the header section.
-    fn parse_headers(&self, mut data: &[u8]) -> Result<HashMap<String, HeaderValue>> {
+    ///
+    /// Associated function (no `self`): it is a pure function of `data`
+    /// and is private to this module, so this is not a public API change.
+    fn parse_headers(mut data: &[u8]) -> Result<HashMap<String, HeaderValue>> {
         let mut headers = HashMap::new();
 
         while !data.is_empty() {
@@ -458,7 +467,7 @@ impl EventStreamDecoder {
             data = &data[1..];
 
             // Read header value based on type
-            let (value, remaining) = self.parse_header_value(header_type, data)?;
+            let (value, remaining) = Self::parse_header_value(header_type, data)?;
             headers.insert(name, value);
             data = remaining;
         }
@@ -467,11 +476,11 @@ impl EventStreamDecoder {
     }
 
     /// Parses a header value based on its type.
-    fn parse_header_value<'a>(
-        &self,
-        header_type: u8,
-        data: &'a [u8],
-    ) -> Result<(HeaderValue, &'a [u8])> {
+    ///
+    /// This is an associated function (no `self`) because it is a pure
+    /// function of its arguments; it is private to this module, so making
+    /// it associated is not a public API change.
+    fn parse_header_value(header_type: u8, data: &[u8]) -> Result<(HeaderValue, &[u8])> {
         match header_type {
             header_types::BOOL_TRUE => Ok((HeaderValue::BoolTrue, data)),
             header_types::BOOL_FALSE => Ok((HeaderValue::BoolFalse, data)),
@@ -481,7 +490,11 @@ impl EventStreamDecoder {
                         "missing byte value".to_string(),
                     ));
                 }
-                Ok((HeaderValue::Byte(data[0] as i8), &data[1..]))
+                // Bit-reinterpretation of the wire byte as signed, not a
+                // narrowing numeric conversion; from_be_bytes avoids the
+                // `as` cast without changing behavior (irrelevant
+                // endianness for a single byte).
+                Ok((HeaderValue::Byte(i8::from_be_bytes([data[0]])), &data[1..]))
             }
             header_types::SHORT => {
                 if data.len() < 2 {
@@ -558,14 +571,17 @@ impl EventStreamDecoder {
                 Ok((HeaderValue::Uuid(uuid), &data[16..]))
             }
             _ => Err(EventStreamError::InvalidHeader(format!(
-                "unknown header type: {}",
-                header_type
+                "unknown header type: {header_type}"
             ))),
         }
     }
 
     /// Converts a raw frame to an Event.
-    fn frame_to_event(&self, frame: RawFrame) -> Result<Option<Event>> {
+    ///
+    /// This is an associated function (no `self`) because it only operates
+    /// on `frame`; it is private to this module, so making it associated
+    /// is not a public API change.
+    fn frame_to_event(frame: RawFrame) -> Result<Option<Event>> {
         // Get the message type header
         let message_type = frame
             .headers
@@ -647,7 +663,7 @@ impl EventStreamDecoder {
                 // Unknown message type - return as message for debugging
                 let payload = String::from_utf8(frame.payload).unwrap_or_default();
                 Ok(Some(Event::Message(MessageEvent {
-                    event_type: format!("unknown:{}", message_type),
+                    event_type: format!("unknown:{message_type}"),
                     payload,
                     headers: frame.headers,
                 })))
@@ -664,7 +680,7 @@ use futures::Stream;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-/// A stream that decodes EventStream frames from a byte stream.
+/// A stream that decodes `EventStream` frames from a byte stream.
 ///
 /// This adapter wraps a byte stream (like from an HTTP response) and
 /// yields decoded events.
@@ -709,7 +725,7 @@ impl<S: std::fmt::Debug> std::fmt::Debug for EventStream<S> {
 }
 
 impl<S: std::fmt::Debug> EventStream<S> {
-    /// Creates a new EventStream from a byte stream.
+    /// Creates a new `EventStream` from a byte stream.
     pub fn new(inner: S) -> Self {
         Self {
             inner,
@@ -777,10 +793,22 @@ where
 // Helper Functions
 // =============================================================================
 
-/// Creates a simple EventStream frame for testing.
+/// Creates a simple `EventStream` frame for testing.
 ///
-/// This is primarily useful for testing and debugging.
+/// This is primarily useful for testing and debugging. Callers are
+/// expected to pass small, well-formed test fixtures — `event_type` under
+/// 256 bytes and `payload` well under the `u32` wire-format frame-length
+/// limit (see the module-level diagram).
 #[must_use]
+#[allow(clippy::cast_possible_truncation)]
+// The AWS EventStream wire format defines header-name length as u8,
+// header-value length as u16, and total frame length as u32 (see the
+// module-level diagram). This is a `pub fn` test helper (not
+// `#[cfg(test)]`-gated, so it's usable by downstream integration tests),
+// and it returns `Vec<u8>` rather than `Result`; changing that return type
+// would be a breaking API change for a helper whose whole job is to be a
+// trivial one-liner in test code. Callers are expected to pass small,
+// well-formed test fixtures, so unchecked truncation here is acceptable.
 pub fn create_test_frame(event_type: &str, payload: &[u8]) -> Vec<u8> {
     // Build headers
     let mut headers = Vec::new();
@@ -863,7 +891,7 @@ mod tests {
                 assert_eq!(msg.event_type, "test_event");
                 assert_eq!(msg.payload, r#"{"test": "data"}"#);
             }
-            _ => panic!("Expected message event"),
+            Event::Exception(_) => panic!("Expected message event"),
         }
     }
 
@@ -891,7 +919,7 @@ mod tests {
         let frame1 = create_test_frame("event1", b"payload1");
         let frame2 = create_test_frame("event2", b"payload2");
 
-        let mut combined = frame1.clone();
+        let mut combined = frame1;
         combined.extend_from_slice(&frame2);
 
         let events = decoder.decode(&combined).unwrap();
@@ -903,7 +931,7 @@ mod tests {
         let mut decoder = EventStreamDecoder::new();
 
         let frame = create_test_frame("test", b"data");
-        let mut corrupted = frame.clone();
+        let mut corrupted = frame;
         // Corrupt a byte in the payload
         corrupted[20] ^= 0xFF;
 
@@ -918,7 +946,7 @@ mod tests {
         // Create a Bedrock-style chunk with base64-encoded content
         let inner_event = r#"{"type":"message_start","message":{"id":"msg_123"}}"#;
         let encoded = base64::engine::general_purpose::STANDARD.encode(inner_event.as_bytes());
-        let chunk_payload = format!(r#"{{"bytes":"{}"}}"#, encoded);
+        let chunk_payload = format!(r#"{{"bytes":"{encoded}"}}"#);
 
         let frame = create_test_frame("chunk", chunk_payload.as_bytes());
         let events = decoder.decode(&frame).unwrap();
@@ -929,7 +957,7 @@ mod tests {
                 assert_eq!(msg.event_type, "message_start");
                 assert!(msg.payload.contains("msg_123"));
             }
-            _ => panic!("Expected message event"),
+            Event::Exception(_) => panic!("Expected message event"),
         }
     }
 
@@ -955,7 +983,7 @@ mod tests {
                 assert_eq!(msg.event_type, "ping");
                 assert!(msg.payload.is_empty());
             }
-            _ => panic!("Expected message event"),
+            Event::Exception(_) => panic!("Expected message event"),
         }
     }
 
@@ -981,14 +1009,14 @@ mod tests {
         let frame1 = create_test_frame("event1", b"data1");
         let frame2 = create_test_frame("event2", b"data2");
 
-        let mut combined = frame1.clone();
+        let mut combined = frame1;
         combined.extend_from_slice(&frame2);
 
-        let frames = decoder.decode_frames(&combined).unwrap();
-        assert_eq!(frames.len(), 2);
+        let raw_frames = decoder.decode_frames(&combined).unwrap();
+        assert_eq!(raw_frames.len(), 2);
 
         // Check headers
-        assert!(frames[0].headers.contains_key(":event-type"));
-        assert!(frames[1].headers.contains_key(":event-type"));
+        assert!(raw_frames[0].headers.contains_key(":event-type"));
+        assert!(raw_frames[1].headers.contains_key(":event-type"));
     }
 }

@@ -337,19 +337,19 @@ impl RequestBuilder {
 
     /// Returns a reference to the current URL.
     #[must_use]
-    pub fn url(&self) -> &Url {
+    pub const fn url(&self) -> &Url {
         &self.url
     }
 
     /// Returns a reference to the current method.
     #[must_use]
-    pub fn get_method(&self) -> &Method {
+    pub const fn get_method(&self) -> &Method {
         &self.method
     }
 
     /// Returns a reference to the current headers.
     #[must_use]
-    pub fn get_headers(&self) -> &HeaderMap {
+    pub const fn get_headers(&self) -> &HeaderMap {
         &self.headers
     }
 }

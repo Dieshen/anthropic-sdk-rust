@@ -11,9 +11,9 @@ use futures::stream::Stream;
 use pin_project_lite::pin_project;
 
 use super::events::{
-    ContentBlockDelta, ContentBlockStartContent, MessageDelta, MessageDeltaUsage,
-    RawContentBlockDeltaEvent, RawContentBlockStartEvent, RawContentBlockStopEvent, RawErrorEvent,
-    RawMessageDeltaEvent, RawMessageStartEvent, StreamEvent,
+    ContentBlockDelta, RawContentBlockDeltaEvent, RawContentBlockStartEvent,
+    RawContentBlockStopEvent, RawErrorEvent, RawMessageDeltaEvent, RawMessageStartEvent,
+    StreamEvent,
 };
 use super::sse::{SseDecoder, SseError, SseEvent};
 use crate::types::{ContentBlock, Message, Usage};
@@ -99,7 +99,7 @@ impl From<std::io::Error> for MessageStreamError {
 /// Tracks the accumulated message content as events are received.
 #[derive(Debug, Clone)]
 pub struct StreamState {
-    /// The message being built (from message_start event).
+    /// The message being built (from `message_start` event).
     pub message: Option<Message>,
 
     /// Content blocks being accumulated.
@@ -127,7 +127,7 @@ impl Default for StreamState {
 impl StreamState {
     /// Creates a new empty stream state.
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             message: None,
             content_blocks: Vec::new(),
@@ -146,12 +146,12 @@ impl StreamState {
 
     /// Returns the current message with accumulated content.
     ///
-    /// Returns `None` if no message_start event has been received.
+    /// Returns `None` if no `message_start` event has been received.
     #[must_use]
     pub fn current_message(&self) -> Option<Message> {
         self.message.as_ref().map(|msg| {
             let mut message = msg.clone();
-            message.content = self.content_blocks.clone();
+            message.content.clone_from(&self.content_blocks);
             if let Some(ref usage) = self.usage {
                 message.usage = usage.clone();
             }
@@ -245,8 +245,8 @@ impl StreamState {
             StreamEvent::MessageDelta { delta, usage } => {
                 // Update stop reason in message
                 if let Some(ref mut msg) = self.message {
-                    msg.stop_reason = delta.stop_reason.clone();
-                    msg.stop_sequence = delta.stop_sequence.clone();
+                    msg.stop_reason = delta.stop_reason;
+                    msg.stop_sequence.clone_from(&delta.stop_sequence);
                 }
 
                 // Update usage
@@ -324,7 +324,7 @@ pin_project! {
 
 impl<S> MessageStream<S> {
     /// Creates a new message stream from a byte stream.
-    pub fn new(inner: S) -> Self {
+    pub const fn new(inner: S) -> Self {
         Self {
             inner,
             decoder: SseDecoder::new(),
@@ -337,7 +337,7 @@ impl<S> MessageStream<S> {
 
     /// Returns a reference to the current stream state.
     #[must_use]
-    pub fn state(&self) -> &StreamState {
+    pub const fn state(&self) -> &StreamState {
         &self.state
     }
 
@@ -355,7 +355,7 @@ impl<S> MessageStream<S> {
 
     /// Returns true if the stream has completed.
     #[must_use]
-    pub fn is_complete(&self) -> bool {
+    pub const fn is_complete(&self) -> bool {
         self.state.is_complete
     }
 
@@ -441,8 +441,7 @@ where
                         return Poll::Ready(Some(Ok(event)));
                     }
 
-                    // No events yet, continue polling
-                    continue;
+                    // No events yet, loop back and poll again
                 }
 
                 Poll::Ready(Some(Err(e))) => {
@@ -476,7 +475,7 @@ where
 // SSE Event Parsing
 // =============================================================================
 
-/// Parses an SSE event into a StreamEvent.
+/// Parses an SSE event into a `StreamEvent`.
 ///
 /// Returns `Ok(None)` for ping events (which should be skipped).
 fn parse_sse_event(sse_event: &SseEvent) -> Result<Option<StreamEvent>, MessageStreamError> {
@@ -536,6 +535,7 @@ fn parse_sse_event(sse_event: &SseEvent) -> Result<Option<StreamEvent>, MessageS
 
 #[cfg(test)]
 mod tests {
+    use super::super::events::ContentBlockStartContent;
     use super::*;
     use futures::stream::{self, StreamExt};
 
@@ -695,10 +695,10 @@ mod tests {
         let chunk3 = Bytes::from("\"model\":\"claude-sonnet-4-5-latest\",\"usage\":{\"input_tokens\":10,\"output_tokens\":1}}}\n\n");
         let chunk4 = Bytes::from("event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n");
 
-        let chunks: Vec<Result<Bytes, std::io::Error>> =
+        let all_chunks: Vec<Result<Bytes, std::io::Error>> =
             vec![Ok(chunk1), Ok(chunk2), Ok(chunk3), Ok(chunk4)];
 
-        let byte_stream = stream::iter(chunks);
+        let byte_stream = stream::iter(all_chunks);
         let mut message_stream = MessageStream::new(byte_stream);
 
         let mut events = Vec::new();
@@ -842,7 +842,7 @@ mod tests {
         assert!(matches!(result, Some(StreamEvent::Error { .. })));
 
         // unknown event type
-        let event = SseEvent::new("unknown_type", r#"{}"#);
+        let event = SseEvent::new("unknown_type", r"{}");
         let result = parse_sse_event(&event);
         assert!(matches!(
             result,

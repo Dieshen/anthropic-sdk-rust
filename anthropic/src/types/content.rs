@@ -31,7 +31,7 @@ use super::shared::CacheControl;
 /// Content block in an assistant response.
 ///
 /// This is a discriminated union based on the `type` field.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlock {
     /// Text content.
@@ -65,19 +65,19 @@ impl ContentBlock {
 
     /// Returns true if this is a text block.
     #[must_use]
-    pub fn is_text(&self) -> bool {
+    pub const fn is_text(&self) -> bool {
         matches!(self, Self::Text(_))
     }
 
     /// Returns true if this is a tool use block.
     #[must_use]
-    pub fn is_tool_use(&self) -> bool {
+    pub const fn is_tool_use(&self) -> bool {
         matches!(self, Self::ToolUse(_))
     }
 
     /// Returns the tool use block if this is one.
     #[must_use]
-    pub fn as_tool_use(&self) -> Option<&ToolUseBlock> {
+    pub const fn as_tool_use(&self) -> Option<&ToolUseBlock> {
         match self {
             Self::ToolUse(block) => Some(block),
             _ => None,
@@ -86,7 +86,7 @@ impl ContentBlock {
 
     /// Returns true if this is a thinking block.
     #[must_use]
-    pub fn is_thinking(&self) -> bool {
+    pub const fn is_thinking(&self) -> bool {
         matches!(self, Self::Thinking(_))
     }
 }
@@ -96,7 +96,7 @@ impl ContentBlock {
 // =============================================================================
 
 /// Text content block in a response.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TextBlock {
     /// The text content.
     pub text: String,
@@ -124,7 +124,7 @@ impl TextBlock {
 /// Extended thinking content block.
 ///
 /// Contains the model's reasoning process when extended thinking is enabled.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ThinkingBlock {
     /// The thinking content.
     pub thinking: String,
@@ -137,7 +137,7 @@ pub struct ThinkingBlock {
 /// Redacted thinking content block.
 ///
 /// Contains thinking content that has been redacted for policy reasons.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RedactedThinkingBlock {
     /// The redacted data.
     pub data: String,
@@ -150,7 +150,7 @@ pub struct RedactedThinkingBlock {
 /// Tool use request block.
 ///
 /// Indicates that the model wants to invoke a tool.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolUseBlock {
     /// Unique identifier for this tool use.
     pub id: String,
@@ -174,6 +174,11 @@ impl ToolUseBlock {
     }
 
     /// Attempts to deserialize the input as a specific type.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `self.input` doesn't match the shape expected by
+    /// `T`.
     pub fn parse_input<T: serde::de::DeserializeOwned>(&self) -> Result<T, serde_json::Error> {
         serde_json::from_value(self.input.clone())
     }
@@ -186,12 +191,12 @@ impl ToolUseBlock {
 /// Server-side tool use block.
 ///
 /// Used for built-in server tools like web search.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ServerToolUseBlock {
     /// Unique identifier for this tool use.
     pub id: String,
 
-    /// Name of the server tool (e.g., "web_search").
+    /// Name of the server tool (e.g., "`web_search`").
     pub name: String,
 
     /// Input parameters for the tool.
@@ -203,7 +208,7 @@ pub struct ServerToolUseBlock {
 // =============================================================================
 
 /// Web search tool result block.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebSearchToolResultBlock {
     /// The tool use ID this result corresponds to.
     pub tool_use_id: String,
@@ -213,7 +218,7 @@ pub struct WebSearchToolResultBlock {
 }
 
 /// Content of a web search result.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WebSearchResultContent {
     /// Search results.
@@ -229,7 +234,7 @@ pub enum WebSearchResultContent {
 }
 
 /// Individual web search result.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebSearchResult {
     /// Title of the search result.
     pub title: String,
@@ -245,7 +250,7 @@ pub struct WebSearchResult {
 // =============================================================================
 
 /// Citation for text content.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Citation {
     /// Character position citation.
@@ -259,7 +264,7 @@ pub enum Citation {
 }
 
 /// Citation with character position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CharLocationCitation {
     /// The cited text.
     pub cited_text: String,
@@ -275,7 +280,7 @@ pub struct CharLocationCitation {
 }
 
 /// Citation with page number.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PageLocationCitation {
     /// The cited text.
     pub cited_text: String,
@@ -289,7 +294,7 @@ pub struct PageLocationCitation {
 }
 
 /// Citation with content block index.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContentBlockLocationCitation {
     /// The cited text.
     pub cited_text: String,
@@ -303,7 +308,7 @@ pub struct ContentBlockLocationCitation {
 }
 
 /// Citation from web search result.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebSearchResultLocationCitation {
     /// The cited text.
     pub cited_text: String,
@@ -321,7 +326,7 @@ pub struct WebSearchResultLocationCitation {
 /// Content block in a request message.
 ///
 /// This is a discriminated union based on the `type` field.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlockParam {
     /// Text content.
@@ -365,7 +370,7 @@ impl ContentBlockParam {
 // =============================================================================
 
 /// Text content block for requests.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TextBlockParam {
     /// The text content.
     pub text: String,
@@ -387,7 +392,7 @@ impl TextBlockParam {
 
     /// Adds cache control to this block.
     #[must_use]
-    pub fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
+    pub const fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
         self.cache_control = Some(cache_control);
         self
     }
@@ -398,7 +403,7 @@ impl TextBlockParam {
 // =============================================================================
 
 /// Image content block for requests.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImageBlockParam {
     /// The image source.
     pub source: ImageSource,
@@ -409,7 +414,7 @@ pub struct ImageBlockParam {
 }
 
 /// Source for image content.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ImageSource {
     /// Base64-encoded image data.
@@ -470,7 +475,7 @@ impl ImageBlockParam {
 // =============================================================================
 
 /// Document content block for requests.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DocumentBlockParam {
     /// The document source.
     pub source: DocumentSource,
@@ -493,7 +498,7 @@ pub struct DocumentBlockParam {
 }
 
 /// Source for document content.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum DocumentSource {
     /// Base64-encoded document data.
@@ -521,7 +526,7 @@ pub enum DocumentSource {
 }
 
 /// Citations configuration for documents.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CitationsConfig {
     /// Whether citations are enabled.
     pub enabled: bool,
@@ -596,7 +601,7 @@ impl DocumentBlockParam {
 /// Tool result content block for requests.
 ///
 /// Used to provide the result of a tool invocation back to the model.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolResultBlockParam {
     /// The ID of the tool use this is a result for.
     pub tool_use_id: String,
@@ -614,7 +619,7 @@ pub struct ToolResultBlockParam {
 }
 
 /// Content for a tool result.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ToolResultContent {
     /// Simple text result.
@@ -624,7 +629,7 @@ pub enum ToolResultContent {
 }
 
 /// Content block in a tool result.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ToolResultContentBlock {
     /// Text content.
@@ -682,7 +687,7 @@ impl ToolResultBlockParam {
 // =============================================================================
 
 /// Tool use block param for including in assistant messages.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolUseBlockParam {
     /// Unique identifier for this tool use.
     pub id: String,
@@ -703,7 +708,7 @@ pub struct ToolUseBlockParam {
 // =============================================================================
 
 /// Thinking block param for including in assistant messages.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ThinkingBlockParam {
     /// The thinking content.
     pub thinking: String,
@@ -713,7 +718,7 @@ pub struct ThinkingBlockParam {
 }
 
 /// Redacted thinking block param for including in assistant messages.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RedactedThinkingBlockParam {
     /// The redacted data.
     pub data: String,

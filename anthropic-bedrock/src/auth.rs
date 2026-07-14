@@ -36,6 +36,7 @@ use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use tracing::{debug, trace};
 
 use crate::error::{Error, Result};
@@ -377,10 +378,13 @@ pub fn sign_request(request: &SigningRequest<'_>) -> Result<Vec<(String, String)
     let signed_headers_str = signed_headers.join(";");
 
     // Build canonical headers string
-    let canonical_headers_str: String = canonical_headers
-        .iter()
-        .map(|(k, v)| format!("{k}:{}\n", v.trim()))
-        .collect();
+    let canonical_headers_str: String =
+        canonical_headers
+            .iter()
+            .fold(String::new(), |mut acc, (k, v)| {
+                let _ = writeln!(acc, "{k}:{}", v.trim());
+                acc
+            });
 
     // Calculate payload hash
     let payload_hash = sha256_hex(request.body);
@@ -449,10 +453,10 @@ pub fn sign_request(request: &SigningRequest<'_>) -> Result<Vec<(String, String)
 /// Derives the signing key for AWS Signature V4.
 ///
 /// The signing key is derived through a series of HMAC operations:
-/// 1. HMAC("AWS4" + secret_key, date)
+/// 1. HMAC("AWS4" + `secret_key`, date)
 /// 2. HMAC(result1, region)
 /// 3. HMAC(result2, service)
-/// 4. HMAC(result3, "aws4_request")
+/// 4. HMAC(result3, "`aws4_request`")
 fn derive_signing_key(secret_key: &str, date: &str, region: &str) -> Result<Vec<u8>> {
     let k_secret = format!("AWS4{secret_key}");
     let k_date = hmac_sha256(k_secret.as_bytes(), date.as_bytes())?;
@@ -687,8 +691,9 @@ mod tests {
         let headers = headers.unwrap();
 
         // Should have x-amz-security-token header for session credentials
-        let header_names: Vec<_> = headers.iter().map(|(n, _)| n.to_lowercase()).collect();
-        assert!(header_names.contains(&"x-amz-security-token".to_string()));
+        assert!(headers
+            .iter()
+            .any(|(n, _)| n.to_lowercase() == "x-amz-security-token"));
 
         // Verify the token value
         let token_header = headers
@@ -752,7 +757,7 @@ mod tests {
         ];
         let signed_at = Utc::now();
 
-        let signed = SignedRequest::new(headers.clone(), signed_at);
+        let signed = SignedRequest::new(headers, signed_at);
         assert_eq!(signed.headers.len(), 2);
         assert_eq!(signed.signed_at, signed_at);
     }
@@ -769,7 +774,7 @@ mod tests {
                 .map(|name| {
                     let value = std::env::var(*name).ok();
                     std::env::remove_var(*name);
-                    (name.to_string(), value)
+                    ((*name).to_string(), value)
                 })
                 .collect();
             Self { vars }

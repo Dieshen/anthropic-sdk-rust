@@ -111,7 +111,7 @@ pub struct DeletedFile {
     /// ID of the deleted file.
     pub id: String,
 
-    /// Object type (always "file_deleted").
+    /// Object type (always "`file_deleted`").
     #[serde(rename = "type")]
     pub deleted_type: String,
 }
@@ -145,7 +145,7 @@ impl FilesListParams {
 
     /// Sets the maximum number of files to return.
     #[must_use]
-    pub fn with_limit(mut self, limit: u32) -> Self {
+    pub const fn with_limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
         self
     }
@@ -198,7 +198,7 @@ impl FilesListResponse {
 
     /// Returns true if there are more pages available.
     #[must_use]
-    pub fn has_next_page(&self) -> bool {
+    pub const fn has_next_page(&self) -> bool {
         self.has_more && self.last_id.is_some()
     }
 }
@@ -279,7 +279,7 @@ pub(crate) struct FilesClient {
 
 impl FilesClient {
     /// Creates a new files client.
-    pub(crate) fn new(http_client: reqwest::Client, base_url: url::Url) -> Self {
+    pub(crate) const fn new(http_client: reqwest::Client, base_url: url::Url) -> Self {
         Self {
             http_client,
             base_url,
@@ -308,6 +308,11 @@ impl FilesClient {
     }
 
     /// Makes a GET request with query parameters.
+    // `Q` is only bound by `Serialize`, not `Sync`, so the `&Q` reference
+    // captured by this async fn makes the returned future `!Send`. Adding a
+    // `Sync` bound would be a breaking change for callers of this crate-
+    // internal helper, so we accept the `!Send` future instead.
+    #[allow(clippy::future_not_send)]
     async fn get_with_query<T, Q>(&self, path: &str, query: &Q) -> Result<T>
     where
         T: serde::de::DeserializeOwned,
@@ -370,7 +375,7 @@ impl FilesClient {
             Ok(response.bytes().await?.to_vec())
         } else {
             let body = response.text().await.unwrap_or_default();
-            Err(Error::Streaming(format!("HTTP {}: {}", status, body)))
+            Err(Error::Streaming(format!("HTTP {status}: {body}")))
         }
     }
 
@@ -385,7 +390,7 @@ impl FilesClient {
             Ok(data)
         } else {
             let body = response.text().await.unwrap_or_default();
-            Err(Error::Streaming(format!("HTTP {}: {}", status, body)))
+            Err(Error::Streaming(format!("HTTP {status}: {body}")))
         }
     }
 }
@@ -454,6 +459,13 @@ impl Files {
     ///
     /// Returns metadata for the uploaded file including its ID.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - `params.mime_type` is not a valid MIME type
+    /// - Authentication fails
+    /// - The API request fails or returns a non-success status
+    ///
     /// # Example
     ///
     /// ```rust,ignore
@@ -467,7 +479,7 @@ impl Files {
         let part = Part::bytes(params.data)
             .file_name(params.filename)
             .mime_str(&params.mime_type)
-            .map_err(|e| Error::config(format!("Invalid MIME type: {}", e)))?;
+            .map_err(|e| Error::config(format!("Invalid MIME type: {e}")))?;
 
         let form = Form::new().part("file", part);
 
@@ -484,6 +496,12 @@ impl Files {
     ///
     /// Returns the file metadata if found.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if `file_id` is empty, if authentication fails, or
+    /// if the API request fails (including when no file with that ID
+    /// exists).
+    ///
     /// # Example
     ///
     /// ```rust,ignore
@@ -494,7 +512,7 @@ impl Files {
         if file_id.is_empty() {
             return Err(Error::config("file_id cannot be empty"));
         }
-        self.client.get(&format!("v1/files/{}", file_id)).await
+        self.client.get(&format!("v1/files/{file_id}")).await
     }
 
     /// Lists uploaded files with optional filtering.
@@ -506,6 +524,10 @@ impl Files {
     /// # Returns
     ///
     /// Returns a paginated list of file metadata.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if authentication fails or the API request fails.
     ///
     /// # Example
     ///
@@ -529,6 +551,12 @@ impl Files {
     ///
     /// This method fetches all pages and returns all files.
     /// For large collections, consider using `list()` with pagination.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if fetching any page fails (authentication failure
+    /// or an API request error). Files already collected from prior pages
+    /// are discarded when this happens.
     ///
     /// # Example
     ///
@@ -565,6 +593,12 @@ impl Files {
     ///
     /// Returns the file content as bytes.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if `file_id` is empty, if authentication fails, or
+    /// if the API request fails (including when no file with that ID
+    /// exists).
+    ///
     /// # Example
     ///
     /// ```rust,ignore
@@ -576,7 +610,7 @@ impl Files {
             return Err(Error::config("file_id cannot be empty"));
         }
         self.client
-            .get_bytes(&format!("v1/files/{}/content", file_id))
+            .get_bytes(&format!("v1/files/{file_id}/content"))
             .await
     }
 
@@ -590,6 +624,12 @@ impl Files {
     ///
     /// Returns confirmation of deletion.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if `file_id` is empty, if authentication fails, or
+    /// if the API request fails (including when no file with that ID
+    /// exists).
+    ///
     /// # Example
     ///
     /// ```rust,ignore
@@ -600,7 +640,7 @@ impl Files {
         if file_id.is_empty() {
             return Err(Error::config("file_id cannot be empty"));
         }
-        self.client.delete(&format!("v1/files/{}", file_id)).await
+        self.client.delete(&format!("v1/files/{file_id}")).await
     }
 }
 

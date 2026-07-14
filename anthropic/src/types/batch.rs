@@ -13,12 +13,12 @@ use super::message::{Message, MessageCreateParams};
 // =============================================================================
 
 /// A message batch response.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessageBatch {
     /// Unique identifier for this batch.
     pub id: String,
 
-    /// Object type (always "message_batch").
+    /// Object type (always "`message_batch`").
     #[serde(rename = "type")]
     pub batch_type: String,
 
@@ -101,7 +101,7 @@ pub struct BatchRequestCounts {
 impl BatchRequestCounts {
     /// Returns the total number of requests.
     #[must_use]
-    pub fn total(&self) -> i64 {
+    pub const fn total(&self) -> i64 {
         self.processing + self.succeeded + self.errored + self.canceled + self.expired
     }
 }
@@ -120,7 +120,7 @@ pub struct BatchCreateParams {
 impl BatchCreateParams {
     /// Creates new batch parameters with the given requests.
     #[must_use]
-    pub fn new(requests: Vec<BatchRequest>) -> Self {
+    pub const fn new(requests: Vec<BatchRequest>) -> Self {
         Self { requests }
     }
 }
@@ -151,7 +151,7 @@ impl BatchRequest {
 // =============================================================================
 
 /// A single result from a batch.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BatchResult {
     /// Custom identifier for this request.
     pub custom_id: String,
@@ -161,7 +161,7 @@ pub struct BatchResult {
 }
 
 /// The type of result for a batch request.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum BatchResultType {
     /// Successful result.
@@ -183,7 +183,7 @@ pub enum BatchResultType {
 impl BatchResultType {
     /// Returns the message if this is a successful result.
     #[must_use]
-    pub fn message(&self) -> Option<&Message> {
+    pub const fn message(&self) -> Option<&Message> {
         match self {
             Self::Succeeded { message } => Some(message),
             _ => None,
@@ -192,19 +192,19 @@ impl BatchResultType {
 
     /// Returns true if this result was successful.
     #[must_use]
-    pub fn is_succeeded(&self) -> bool {
+    pub const fn is_succeeded(&self) -> bool {
         matches!(self, Self::Succeeded { .. })
     }
 
     /// Returns true if this result was an error.
     #[must_use]
-    pub fn is_errored(&self) -> bool {
+    pub const fn is_errored(&self) -> bool {
         matches!(self, Self::Errored { .. })
     }
 }
 
 /// Error details for a batch request.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BatchError {
     /// Error type.
     #[serde(rename = "type")]
@@ -219,7 +219,7 @@ pub struct BatchError {
 // =============================================================================
 
 /// Parameters for listing message batches.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BatchListParams {
     /// Maximum number of batches to return.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -243,19 +243,19 @@ impl BatchListParams {
 
     /// Sets the limit.
     #[must_use]
-    pub fn with_limit(mut self, limit: i64) -> Self {
+    pub const fn with_limit(mut self, limit: i64) -> Self {
         self.limit = Some(limit);
         self
     }
 
-    /// Sets the before_id cursor.
+    /// Sets the `before_id` cursor.
     #[must_use]
     pub fn with_before_id(mut self, before_id: impl Into<String>) -> Self {
         self.before_id = Some(before_id.into());
         self
     }
 
-    /// Sets the after_id cursor.
+    /// Sets the `after_id` cursor.
     #[must_use]
     pub fn with_after_id(mut self, after_id: impl Into<String>) -> Self {
         self.after_id = Some(after_id.into());
@@ -264,7 +264,7 @@ impl BatchListParams {
 }
 
 /// Response from listing message batches.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BatchListResponse {
     /// The list of batches.
     pub data: Vec<MessageBatch>,

@@ -149,6 +149,13 @@ impl MiddlewareStack {
     }
 
     /// Executes a request through the middleware stack.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any middleware in the stack returns an error (for
+    /// example, [`RetryMiddleware`] after exhausting its retry budget), or if
+    /// the underlying HTTP request itself fails (connection error, timeout,
+    /// etc.) once it reaches the end of the chain.
     pub async fn execute(&self, client: &Client, request: Request) -> Result<Response> {
         let next = Next::new(&self.middlewares, client);
         next.run(request).await
@@ -198,7 +205,7 @@ impl LoggingMiddleware {
     ///
     /// **Warning**: Headers may contain sensitive data like API keys.
     #[must_use]
-    pub fn with_headers(mut self) -> Self {
+    pub const fn with_headers(mut self) -> Self {
         self.log_headers = true;
         self
     }
@@ -207,7 +214,7 @@ impl LoggingMiddleware {
     ///
     /// **Warning**: Bodies may be large and impact performance.
     #[must_use]
-    pub fn with_bodies(mut self) -> Self {
+    pub const fn with_bodies(mut self) -> Self {
         self.log_bodies = true;
         self
     }
@@ -287,7 +294,7 @@ pub struct RetryMiddleware<P: RetryPolicy = ExponentialBackoff> {
 impl RetryMiddleware<ExponentialBackoff> {
     /// Creates a new retry middleware with the given configuration.
     #[must_use]
-    pub fn new(config: RetryConfig) -> Self {
+    pub const fn new(config: RetryConfig) -> Self {
         Self {
             policy: ExponentialBackoff::new(config),
         }
@@ -297,7 +304,7 @@ impl RetryMiddleware<ExponentialBackoff> {
 impl<P: RetryPolicy> RetryMiddleware<P> {
     /// Creates a new retry middleware with a custom policy.
     #[must_use]
-    pub fn with_policy(policy: P) -> Self {
+    pub const fn with_policy(policy: P) -> Self {
         Self { policy }
     }
 }
@@ -326,7 +333,7 @@ impl<P: RetryPolicy + Clone + 'static> Middleware for RetryMiddleware<P> {
             let body = request
                 .body()
                 .and_then(|b| b.as_bytes())
-                .map(|b| b.to_vec());
+                .map(<[u8]>::to_vec);
 
             let mut attempt = 0u32;
 
@@ -451,7 +458,7 @@ impl HeaderMiddleware {
 
     /// Creates a header middleware with the given headers.
     #[must_use]
-    pub fn with_headers(headers: HeaderMap) -> Self {
+    pub const fn with_headers(headers: HeaderMap) -> Self {
         Self { headers }
     }
 
@@ -540,10 +547,10 @@ impl Middleware for TimingMiddleware {
             let result: Result<Response> = next.run(request).await;
             let duration = start.elapsed();
 
-            let status = match &result {
-                Ok(response) => response.status().as_u16().to_string(),
-                Err(_) => "error".to_string(),
-            };
+            let status = result.as_ref().map_or_else(
+                |_| "error".to_string(),
+                |response| response.status().as_u16().to_string(),
+            );
 
             tracing::info!(
                 method = method,

@@ -14,7 +14,7 @@ use super::shared::CacheControl;
 /// Tool definition for requests.
 ///
 /// Defines a tool that the model can use during message generation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolParam {
     /// Name of the tool.
     ///
@@ -61,7 +61,7 @@ impl ToolParam {
 
     /// Sets cache control.
     #[must_use]
-    pub fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
+    pub const fn with_cache_control(mut self, cache_control: CacheControl) -> Self {
         self.cache_control = Some(cache_control);
         self
     }
@@ -70,15 +70,11 @@ impl ToolParam {
 /// Tool type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ToolType {
     /// Custom user-defined tool.
+    #[default]
     Custom,
-}
-
-impl Default for ToolType {
-    fn default() -> Self {
-        Self::Custom
-    }
 }
 
 // =============================================================================
@@ -86,7 +82,7 @@ impl Default for ToolType {
 // =============================================================================
 
 /// JSON Schema for tool input parameters.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolInputSchema {
     /// Schema type (always "object").
     #[serde(rename = "type")]
@@ -132,6 +128,11 @@ impl ToolInputSchema {
     }
 
     /// Creates a schema from a JSON value.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `value` doesn't match the shape expected by
+    /// `Self` (an object with the standard JSON Schema fields).
     pub fn from_json(value: serde_json::Value) -> Result<Self, serde_json::Error> {
         serde_json::from_value(value)
     }
@@ -150,7 +151,7 @@ impl Default for ToolInputSchema {
 /// Tool choice configuration for requests.
 ///
 /// Controls how the model selects which tools to use.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ToolChoice {
     /// Model automatically decides whether to use tools.
@@ -184,7 +185,7 @@ pub enum ToolChoice {
 impl ToolChoice {
     /// Creates an auto tool choice.
     #[must_use]
-    pub fn auto() -> Self {
+    pub const fn auto() -> Self {
         Self::Auto {
             disable_parallel_tool_use: None,
         }
@@ -192,7 +193,7 @@ impl ToolChoice {
 
     /// Creates an any tool choice.
     #[must_use]
-    pub fn any() -> Self {
+    pub const fn any() -> Self {
         Self::Any {
             disable_parallel_tool_use: None,
         }
@@ -209,7 +210,7 @@ impl ToolChoice {
 
     /// Creates a none tool choice.
     #[must_use]
-    pub fn none() -> Self {
+    pub const fn none() -> Self {
         Self::None
     }
 }
@@ -225,7 +226,7 @@ impl Default for ToolChoice {
 // =============================================================================
 
 /// Server-side tool union for requests.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ServerTool {
     /// Web search tool.
@@ -246,9 +247,9 @@ pub enum ServerTool {
 }
 
 /// Web search tool configuration.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebSearchTool {
-    /// Name of the tool (always "web_search").
+    /// Name of the tool (always "`web_search`").
     #[serde(default = "default_web_search_name")]
     pub name: String,
 
@@ -286,7 +287,7 @@ impl WebSearchTool {
 
     /// Sets the maximum number of uses.
     #[must_use]
-    pub fn with_max_uses(mut self, max_uses: i64) -> Self {
+    pub const fn with_max_uses(mut self, max_uses: i64) -> Self {
         self.max_uses = Some(max_uses);
         self
     }
@@ -307,7 +308,7 @@ impl WebSearchTool {
 }
 
 /// User location for web search context.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UserLocation {
     /// Location type.
     #[serde(rename = "type")]
@@ -345,7 +346,7 @@ impl UserLocation {
 }
 
 /// Bash tool for computer use.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BashTool {
     /// Name of the tool (always "bash").
     #[serde(default = "default_bash_name")]
@@ -361,9 +362,9 @@ fn default_bash_name() -> String {
 }
 
 /// Text editor tool for computer use.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TextEditorTool {
-    /// Name of the tool (always "str_replace_editor").
+    /// Name of the tool (always "`str_replace_editor`").
     #[serde(default = "default_text_editor_name")]
     pub name: String,
 
@@ -377,7 +378,7 @@ fn default_text_editor_name() -> String {
 }
 
 /// Computer use tool.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ComputerTool {
     /// Name of the tool (always "computer").
     #[serde(default = "default_computer_name")]
@@ -421,7 +422,7 @@ impl ComputerTool {
 // =============================================================================
 
 /// Union type for all tools (custom and server).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Tool {
     /// Custom user-defined tool.

@@ -126,7 +126,7 @@ pub enum BetaFeature {
 impl BetaFeature {
     /// Returns the string value for the beta header.
     #[must_use]
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(&self) -> &'static str {
         match self {
             Self::MaxTokens35Outputs20250131 => "max-tokens-3-5-sonnet-2024-07-15",
             Self::ComputerUse20250124 => "computer-use-2025-01-24",
@@ -185,7 +185,7 @@ pub struct Beta {
 
 impl Beta {
     /// Creates a new Beta resource.
-    pub(crate) fn new(client: Arc<Anthropic>) -> Self {
+    pub(crate) const fn new(client: Arc<Anthropic>) -> Self {
         Self { client }
     }
 
@@ -250,7 +250,7 @@ impl Beta {
     }
 }
 
-/// Extension trait to add beta() method to Anthropic client.
+/// Extension trait to add `beta()` method to Anthropic client.
 impl Anthropic {
     /// Returns the Beta resource for accessing beta API features.
     ///
@@ -307,6 +307,6 @@ mod tests {
     #[test]
     fn test_beta_feature_display() {
         let feature = BetaFeature::WebSearch20250305;
-        assert_eq!(format!("{}", feature), "web-search-2025-03-05");
+        assert_eq!(format!("{feature}"), "web-search-2025-03-05");
     }
 }

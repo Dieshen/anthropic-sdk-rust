@@ -251,6 +251,11 @@ impl Anthropic {
     }
 
     /// Makes a POST request with a JSON body.
+    // `B` is only bound by `Serialize`, not `Sync`, so the `&B` reference held
+    // across the `.await` points inside `request` (retry loop) makes this
+    // future `!Send`. Adding a `Sync` bound would be a breaking API change for
+    // this crate's request helpers, so we accept the `!Send` future instead.
+    #[allow(clippy::future_not_send)]
     pub(crate) async fn post<T, B>(&self, path: &str, body: &B) -> Result<T>
     where
         T: serde::de::DeserializeOwned,
@@ -260,6 +265,9 @@ impl Anthropic {
     }
 
     /// Makes a GET request with query parameters.
+    // `Q` is only bound by `Serialize`, not `Sync`; see `post` above for why
+    // this makes the returned future `!Send`.
+    #[allow(clippy::future_not_send)]
     pub(crate) async fn get_with_query<T, Q>(&self, path: &str, query: &Q) -> Result<T>
     where
         T: serde::de::DeserializeOwned,
@@ -269,19 +277,13 @@ impl Anthropic {
             .await
     }
 
-    /// Makes a DELETE request to the specified path.
-    pub(crate) async fn delete<T>(&self, path: &str) -> Result<T>
-    where
-        T: serde::de::DeserializeOwned,
-    {
-        self.request(Method::DELETE, path, Option::<&()>::None)
-            .await
-    }
-
     /// Makes a POST request and returns the raw response for streaming.
     ///
     /// This is used internally for streaming requests where we need access
     /// to the raw response body.
+    // `B` is only bound by `Serialize`, not `Sync`; see `post` above for why
+    // this makes the returned future `!Send`.
+    #[allow(clippy::future_not_send)]
     pub(crate) async fn post_raw<B>(&self, path: &str, body: &B) -> Result<reqwest::Response>
     where
         B: serde::Serialize,
@@ -317,6 +319,10 @@ impl Anthropic {
     }
 
     /// Makes an HTTP request with query parameters and retry logic.
+    // `Q`/`B` are only bound by `Serialize`, not `Sync`, and `query`/`body`
+    // are held across `.await` points across retry-loop iterations; see
+    // `post` above for why this makes the returned future `!Send`.
+    #[allow(clippy::future_not_send)]
     async fn request_with_query<T, Q, B>(
         &self,
         method: Method,
@@ -422,6 +428,10 @@ impl Anthropic {
     }
 
     /// Makes an HTTP request with retry logic.
+    // `B` is only bound by `Serialize`, not `Sync`, and `body` is held across
+    // `.await` points across retry-loop iterations; see `post` above for why
+    // this makes the returned future `!Send`.
+    #[allow(clippy::future_not_send)]
     async fn request<T, B>(&self, method: Method, path: &str, body: Option<&B>) -> Result<T>
     where
         T: serde::de::DeserializeOwned,

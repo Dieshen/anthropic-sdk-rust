@@ -291,8 +291,13 @@ mod tests {
     #[test]
     fn test_reexports() {
         // Verify that key types are properly re-exported
-        let _model = VertexModel::Claude35SonnetV2;
-        let _msg = MessageParam::user("test");
-        let _role = Role::User;
+        let model = VertexModel::Claude35SonnetV2;
+        assert_eq!(model, VertexModel::Claude35SonnetV2);
+
+        let msg = MessageParam::user("test");
+        assert_eq!(msg.role, Role::User);
+
+        let role = Role::User;
+        assert_eq!(role, Role::User);
     }
 }

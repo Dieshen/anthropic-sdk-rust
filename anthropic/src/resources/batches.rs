@@ -71,12 +71,12 @@ use crate::types::{
 // =============================================================================
 
 /// Response from deleting a message batch.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DeletedMessageBatch {
     /// ID of the deleted batch.
     pub id: String,
 
-    /// Object type (always "message_batch_deleted").
+    /// Object type (always "`message_batch_deleted`").
     #[serde(rename = "type")]
     pub deleted_type: String,
 }
@@ -109,7 +109,7 @@ pub(crate) struct BatchesClient {
 
 impl BatchesClient {
     /// Creates a new batches client.
-    pub(crate) fn new(http_client: reqwest::Client, base_url: url::Url) -> Self {
+    pub(crate) const fn new(http_client: reqwest::Client, base_url: url::Url) -> Self {
         Self {
             http_client,
             base_url,
@@ -133,6 +133,11 @@ impl BatchesClient {
     }
 
     /// Makes a GET request with query parameters.
+    // `Q` is only bound by `Serialize`, not `Sync`, so the `&Q` reference
+    // captured by this async fn makes the returned future `!Send`. Adding a
+    // `Sync` bound would be a breaking change for callers of this crate-
+    // internal helper, so we accept the `!Send` future instead.
+    #[allow(clippy::future_not_send)]
     async fn get_with_query<T, Q>(&self, path: &str, query: &Q) -> Result<T>
     where
         T: serde::de::DeserializeOwned,
@@ -144,6 +149,9 @@ impl BatchesClient {
     }
 
     /// Makes a POST request with a JSON body.
+    // `B` is only bound by `Serialize`, not `Sync`; see `get_with_query`
+    // above for why this makes the returned future `!Send`.
+    #[allow(clippy::future_not_send)]
     async fn post<T, B>(&self, path: &str, body: &B) -> Result<T>
     where
         T: serde::de::DeserializeOwned,
@@ -188,8 +196,7 @@ impl BatchesClient {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
             return Err(Error::Streaming(format!(
-                "HTTP {} when fetching results: {}",
-                status, body
+                "HTTP {status} when fetching results: {body}"
             )));
         }
 
@@ -208,7 +215,7 @@ impl BatchesClient {
             Ok(data)
         } else {
             let body = response.text().await.unwrap_or_default();
-            Err(Error::Streaming(format!("HTTP {}: {}", status, body)))
+            Err(Error::Streaming(format!("HTTP {status}: {body}")))
         }
     }
 }
@@ -288,7 +295,7 @@ impl Batches {
             return Err(Error::config("batch_id cannot be empty"));
         }
         self.client
-            .get(&format!("v1/messages/batches/{}", batch_id))
+            .get(&format!("v1/messages/batches/{batch_id}"))
             .await
     }
 
@@ -304,6 +311,13 @@ impl Batches {
     /// # Returns
     ///
     /// Returns a [`BatchListResponse`] containing the batches and pagination info.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Authentication fails
+    /// - The `after_id` cursor in `params` refers to a batch that no longer exists
+    /// - The API is unavailable or returns a malformed response
     ///
     /// # Example
     ///
@@ -353,6 +367,7 @@ impl Batches {
     ///     println!("Batch: {}", batch.id);
     /// }
     /// ```
+    #[must_use]
     pub fn list_auto_paging(&self, params: BatchListParams) -> BatchPaginator {
         BatchPaginator::new(self.clone(), params)
     }
@@ -388,7 +403,7 @@ impl Batches {
             return Err(Error::config("batch_id cannot be empty"));
         }
         self.client
-            .post_empty(&format!("v1/messages/batches/{}/cancel", batch_id))
+            .post_empty(&format!("v1/messages/batches/{batch_id}/cancel"))
             .await
     }
 
@@ -422,7 +437,7 @@ impl Batches {
             return Err(Error::config("batch_id cannot be empty"));
         }
         self.client
-            .delete(&format!("v1/messages/batches/{}", batch_id))
+            .delete(&format!("v1/messages/batches/{batch_id}"))
             .await
     }
 
@@ -473,7 +488,7 @@ impl Batches {
 
         let response = self
             .client
-            .get_stream(&format!("v1/messages/batches/{}/results", batch_id))
+            .get_stream(&format!("v1/messages/batches/{batch_id}/results"))
             .await?;
 
         let body = response.text().await?;
@@ -534,7 +549,7 @@ impl Batches {
 
         let response = self
             .client
-            .get_stream(&format!("v1/messages/batches/{}/results", batch_id))
+            .get_stream(&format!("v1/messages/batches/{batch_id}/results"))
             .await?;
 
         Ok(JsonlStream::<BatchResult, _>::new(response.bytes_stream()))
@@ -617,7 +632,7 @@ pub struct BatchPaginator {
 
 impl BatchPaginator {
     /// Creates a new paginator.
-    fn new(batches: Batches, params: BatchListParams) -> Self {
+    const fn new(batches: Batches, params: BatchListParams) -> Self {
         Self {
             batches,
             params,
@@ -688,6 +703,13 @@ impl BatchPaginator {
     }
 
     /// Collects all remaining batches into a vector.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if fetching any page fails, for the same reasons as
+    /// [`Batches::list`]: authentication failure, an invalid pagination
+    /// cursor, or an unavailable/malformed API response. Any batches already
+    /// collected before the failing page are discarded.
     pub async fn collect_all(&mut self) -> Result<Vec<MessageBatch>> {
         let mut results = Vec::new();
 
