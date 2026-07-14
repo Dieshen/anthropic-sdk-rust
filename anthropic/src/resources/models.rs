@@ -303,13 +303,13 @@ pub struct ModelsListResponse {
 impl ModelsListResponse {
     /// Returns the number of models in this response.
     #[must_use]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.data.len()
     }
 
     /// Returns true if this response contains no models.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
 

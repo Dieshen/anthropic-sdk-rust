@@ -186,7 +186,7 @@ impl RetryConfigBuilder {
 
     /// Sets the jitter factor (0.0 to 1.0).
     #[must_use]
-    pub fn jitter_factor(mut self, factor: f64) -> Self {
+    pub const fn jitter_factor(mut self, factor: f64) -> Self {
         self.jitter_factor = Some(factor.clamp(0.0, 1.0));
         self
     }

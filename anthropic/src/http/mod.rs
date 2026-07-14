@@ -7,10 +7,12 @@
 //!
 //! The HTTP module is organized into several submodules:
 //!
-//! - [`request`]: Request building with Anthropic-specific headers
-//! - [`response`]: Response parsing and error handling
-//! - [`retry`]: Retry policies with exponential backoff and jitter
-//! - [`middleware`]: Composable middleware chain for request/response processing
+//! (These submodules are private; their public types are re-exported from this module.)
+//!
+//! - `request`: Request building with Anthropic-specific headers
+//! - `response`: Response parsing and error handling
+//! - `retry`: Retry policies with exponential backoff and jitter
+//! - `middleware`: Composable middleware chain for request/response processing
 //!
 //! # Example
 //!

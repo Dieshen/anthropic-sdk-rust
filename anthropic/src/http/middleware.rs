@@ -520,7 +520,7 @@ impl Middleware for HeaderMiddleware {
 #[derive(Debug, Clone, Default)]
 pub struct TimingMiddleware {
     /// Optional callback to receive timing information.
-    /// Using Option<Arc<dyn Fn>> instead of a direct callback for Clone support.
+    /// Using `Option<Arc<dyn Fn>>` instead of a direct callback for Clone support.
     _marker: std::marker::PhantomData<()>,
 }
 
