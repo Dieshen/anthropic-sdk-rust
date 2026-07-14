@@ -264,6 +264,26 @@ impl Anthropic {
         self.request(Method::POST, path, Some(body)).await
     }
 
+    /// Makes a POST request with a JSON body and additional per-request headers.
+    ///
+    /// Used by the beta APIs, which must send `anthropic-beta` describing the
+    /// features the caller opted into.
+    // See `post` above for why this future is `!Send`.
+    #[allow(clippy::future_not_send)]
+    pub(crate) async fn post_with_headers<T, B>(
+        &self,
+        path: &str,
+        body: &B,
+        extra_headers: &[(&str, String)],
+    ) -> Result<T>
+    where
+        T: serde::de::DeserializeOwned,
+        B: serde::Serialize,
+    {
+        self.request_with_headers(Method::POST, path, Some(body), extra_headers)
+            .await
+    }
+
     /// Makes a GET request with query parameters.
     // `Q` is only bound by `Serialize`, not `Sync`; see `post` above for why
     // this makes the returned future `!Send`.
@@ -437,6 +457,25 @@ impl Anthropic {
         T: serde::de::DeserializeOwned,
         B: serde::Serialize,
     {
+        self.request_with_headers(method, path, body, &[]).await
+    }
+
+    /// Core request path. `extra_headers` are applied to every attempt, including
+    /// retries — a retried beta request must still carry its `anthropic-beta` header.
+    // `B` is only bound by `Serialize`, not `Sync`; the `&B` held across the
+    // `.await` points in the retry loop makes this future `!Send`. See `post`.
+    #[allow(clippy::future_not_send)]
+    async fn request_with_headers<T, B>(
+        &self,
+        method: Method,
+        path: &str,
+        body: Option<&B>,
+        extra_headers: &[(&str, String)],
+    ) -> Result<T>
+    where
+        T: serde::de::DeserializeOwned,
+        B: serde::Serialize,
+    {
         let url = self.build_url(path)?;
         let mut attempt = 0;
 
@@ -450,6 +489,10 @@ impl Anthropic {
             // Add body if present
             if let Some(body) = body {
                 request_builder = request_builder.json(body);
+            }
+
+            for (name, value) in extra_headers {
+                request_builder = request_builder.header(*name, value);
             }
 
             // Add retry count header
