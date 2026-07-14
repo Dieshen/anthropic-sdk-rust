@@ -177,10 +177,8 @@ impl RequestBuilder {
     pub fn json_body<T: Serialize>(mut self, body: &T) -> Result<Self> {
         let json = serde_json::to_vec(body)?;
         self.body = Some(json);
-        self.headers.insert(
-            CONTENT_TYPE,
-            HeaderValue::from_static(CONTENT_TYPE_JSON),
-        );
+        self.headers
+            .insert(CONTENT_TYPE, HeaderValue::from_static(CONTENT_TYPE_JSON));
         Ok(self)
     }
 
@@ -262,21 +260,15 @@ impl RequestBuilder {
         let api_key_value = HeaderValue::from_str(api_key)?;
         let version_value = HeaderValue::from_str(version)?;
 
-        self.headers.insert(
-            HeaderName::from_static(HEADER_API_KEY),
-            api_key_value,
-        );
-        self.headers.insert(
-            HeaderName::from_static(HEADER_API_VERSION),
-            version_value,
-        );
+        self.headers
+            .insert(HeaderName::from_static(HEADER_API_KEY), api_key_value);
+        self.headers
+            .insert(HeaderName::from_static(HEADER_API_VERSION), version_value);
 
         // Set content type if not already set
         if !self.headers.contains_key(CONTENT_TYPE) {
-            self.headers.insert(
-                CONTENT_TYPE,
-                HeaderValue::from_static(CONTENT_TYPE_JSON),
-            );
+            self.headers
+                .insert(CONTENT_TYPE, HeaderValue::from_static(CONTENT_TYPE_JSON));
         }
 
         Ok(self)
@@ -386,7 +378,10 @@ mod tests {
         let builder = RequestBuilder::new(test_client(), "POST", test_url())
             .unwrap()
             .path("messages");
-        assert_eq!(builder.url().as_str(), "https://api.anthropic.com/v1/messages");
+        assert_eq!(
+            builder.url().as_str(),
+            "https://api.anthropic.com/v1/messages"
+        );
     }
 
     #[test]
@@ -425,11 +420,21 @@ mod tests {
 
         let request = builder.build().unwrap();
         assert_eq!(
-            request.headers().get(HEADER_API_KEY).unwrap().to_str().unwrap(),
+            request
+                .headers()
+                .get(HEADER_API_KEY)
+                .unwrap()
+                .to_str()
+                .unwrap(),
             "test-api-key"
         );
         assert_eq!(
-            request.headers().get(HEADER_API_VERSION).unwrap().to_str().unwrap(),
+            request
+                .headers()
+                .get(HEADER_API_VERSION)
+                .unwrap()
+                .to_str()
+                .unwrap(),
             "2023-06-01"
         );
     }
@@ -444,7 +449,12 @@ mod tests {
             .unwrap();
 
         let request = builder.build().unwrap();
-        let beta_header = request.headers().get(HEADER_BETA).unwrap().to_str().unwrap();
+        let beta_header = request
+            .headers()
+            .get(HEADER_BETA)
+            .unwrap()
+            .to_str()
+            .unwrap();
         assert!(beta_header.contains("feature1"));
         assert!(beta_header.contains("feature2"));
     }
@@ -467,7 +477,12 @@ mod tests {
 
         let request = builder.build().unwrap();
         assert_eq!(
-            request.headers().get(CONTENT_TYPE).unwrap().to_str().unwrap(),
+            request
+                .headers()
+                .get(CONTENT_TYPE)
+                .unwrap()
+                .to_str()
+                .unwrap(),
             CONTENT_TYPE_JSON
         );
     }

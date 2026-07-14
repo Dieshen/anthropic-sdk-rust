@@ -45,7 +45,7 @@ pub mod models;
 
 pub use batches::{BatchPaginator, Batches, DeletedMessageBatch};
 pub use messages::{
-    ContentBlockStart, ContentDelta, MessageCountTokensParams, MessageDeltaContent, Messages,
-    MessageStream, StreamError, StreamEvent,
+    ContentBlockStart, ContentDelta, MessageCountTokensParams, MessageDeltaContent, MessageStream,
+    Messages, StreamError, StreamEvent,
 };
 pub use models::{ModelInfo, Models, ModelsGetParams, ModelsListParams, ModelsListResponse};

@@ -56,31 +56,38 @@ pub mod tools;
 
 // Re-export commonly used types
 pub use messages::{
-    BetaMessage, BetaMessageCreateParams, BetaMessageCreateParamsBuilder,
-    BetaMessageService, BetaContentBlock, BetaStopReason,
-    ThinkingConfig, ThinkingConfigParam,
+    BetaContentBlock, BetaMessage, BetaMessageCreateParams, BetaMessageCreateParamsBuilder,
+    BetaMessageService, BetaStopReason, ThinkingConfig, ThinkingConfigParam,
 };
 
 pub use tools::{
-    BetaTool, BetaToolUnion,
-    // Web Search
-    WebSearchTool20250305, WebSearchUserLocation,
-    WebSearchToolResultBlock, WebSearchToolResultContent,
-    WebSearchToolResultError, WebSearchToolResultErrorCode,
     // Computer Use
-    BashTool20250124, TextEditorTool20250124, ComputerTool20250124,
+    BashTool20250124,
+    BetaTool,
+    BetaToolUnion,
+    CodeExecutionOutputBlock,
+    CodeExecutionResultBlock,
     // Code Execution
-    CodeExecutionTool, CodeExecutionResultBlock, CodeExecutionOutputBlock,
+    CodeExecutionTool,
+    ComputerTool20250124,
+    TextEditorTool20250124,
+    // Web Search
+    WebSearchTool20250305,
+    WebSearchToolResultBlock,
+    WebSearchToolResultContent,
+    WebSearchToolResultError,
+    WebSearchToolResultErrorCode,
+    WebSearchUserLocation,
 };
 
 pub use files::{
-    Files, FileMetadata, FileUploadParams, FilesListParams, FilesListResponse, DeletedFile,
+    DeletedFile, FileMetadata, FileUploadParams, Files, FilesListParams, FilesListResponse,
 };
 
 pub use skills::{
-    Skills, Skill, SkillVersion, SkillType, SkillCreateParams, VersionCreateParams,
-    SkillsListParams, SkillsListResponse, VersionsListParams, VersionsListResponse,
-    DeletedSkill, DeletedSkillVersion,
+    DeletedSkill, DeletedSkillVersion, Skill, SkillCreateParams, SkillType, SkillVersion, Skills,
+    SkillsListParams, SkillsListResponse, VersionCreateParams, VersionsListParams,
+    VersionsListResponse,
 };
 
 // Re-export Beta resource (will be defined below)
@@ -149,8 +156,8 @@ pub const HEADER_ANTHROPIC_BETA: &str = "anthropic-beta";
 // Beta Resource
 // =============================================================================
 
-use std::sync::Arc;
 use crate::Anthropic;
+use std::sync::Arc;
 
 /// Access point for all beta API features.
 ///
@@ -200,10 +207,7 @@ impl Beta {
     /// ```
     #[must_use]
     pub fn files(&self) -> Files {
-        Files::new(
-            self.client.http_client(),
-            self.client.base_url().clone(),
-        )
+        Files::new(self.client.http_client(), self.client.base_url().clone())
     }
 
     /// Returns the Skills resource for managing reusable functionality packages.
@@ -221,10 +225,7 @@ impl Beta {
     /// ```
     #[must_use]
     pub fn skills(&self) -> Skills {
-        Skills::new(
-            self.client.http_client(),
-            self.client.base_url().clone(),
-        )
+        Skills::new(self.client.http_client(), self.client.base_url().clone())
     }
 
     /// Returns the beta message service for extended thinking and server tools.

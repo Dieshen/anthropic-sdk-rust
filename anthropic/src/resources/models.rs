@@ -329,9 +329,9 @@ impl ModelsListResponse {
     #[must_use]
     pub fn next_page_params(&self) -> Option<ModelsListParams> {
         if self.has_more {
-            self.last_id.as_ref().map(|last_id| {
-                ModelsListParams::new().with_after_id(last_id)
-            })
+            self.last_id
+                .as_ref()
+                .map(|last_id| ModelsListParams::new().with_after_id(last_id))
         } else {
             None
         }
@@ -342,9 +342,9 @@ impl ModelsListResponse {
     /// Returns `None` if `first_id` is not available.
     #[must_use]
     pub fn prev_page_params(&self) -> Option<ModelsListParams> {
-        self.first_id.as_ref().map(|first_id| {
-            ModelsListParams::new().with_before_id(first_id)
-        })
+        self.first_id
+            .as_ref()
+            .map(|first_id| ModelsListParams::new().with_before_id(first_id))
     }
 
     /// Filters models by a predicate function.
@@ -733,8 +733,14 @@ mod tests {
         assert_eq!(response.len(), 2);
         assert!(!response.is_empty());
         assert!(response.has_more);
-        assert_eq!(response.first_id, Some("claude-sonnet-4-5-20250929".to_string()));
-        assert_eq!(response.last_id, Some("claude-opus-4-5-20251101".to_string()));
+        assert_eq!(
+            response.first_id,
+            Some("claude-sonnet-4-5-20250929".to_string())
+        );
+        assert_eq!(
+            response.last_id,
+            Some("claude-opus-4-5-20251101".to_string())
+        );
 
         assert_eq!(response.data[0].id, "claude-sonnet-4-5-20250929");
         assert_eq!(response.data[1].id, "claude-opus-4-5-20251101");

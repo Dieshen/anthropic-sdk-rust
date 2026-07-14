@@ -385,8 +385,7 @@ impl EventStreamDecoder {
     /// Parses a complete frame from bytes.
     fn parse_frame(&self, frame: &[u8]) -> Result<Option<RawFrame>> {
         let total_length = u32::from_be_bytes([frame[0], frame[1], frame[2], frame[3]]) as usize;
-        let headers_length =
-            u32::from_be_bytes([frame[4], frame[5], frame[6], frame[7]]) as usize;
+        let headers_length = u32::from_be_bytes([frame[4], frame[5], frame[6], frame[7]]) as usize;
         let prelude_crc = u32::from_be_bytes([frame[8], frame[9], frame[10], frame[11]]);
 
         // Validate prelude CRC
@@ -611,16 +610,15 @@ impl EventStreamDecoder {
                     let payload = String::from_utf8(decoded_bytes)?;
 
                     // Try to extract the actual event type from the decoded payload
-                    let actual_event_type = if let Ok(json) =
-                        serde_json::from_str::<serde_json::Value>(&payload)
-                    {
-                        json.get("type")
-                            .and_then(|t| t.as_str())
-                            .map(String::from)
-                            .unwrap_or(event_type)
-                    } else {
-                        event_type
-                    };
+                    let actual_event_type =
+                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&payload) {
+                            json.get("type")
+                                .and_then(|t| t.as_str())
+                                .map(String::from)
+                                .unwrap_or(event_type)
+                        } else {
+                            event_type
+                        };
 
                     Ok(Some(Event::Message(MessageEvent {
                         event_type: actual_event_type,
@@ -846,8 +844,7 @@ mod tests {
         let frame = create_test_frame("test_event", payload);
 
         // Verify frame structure
-        let total_length =
-            u32::from_be_bytes([frame[0], frame[1], frame[2], frame[3]]) as usize;
+        let total_length = u32::from_be_bytes([frame[0], frame[1], frame[2], frame[3]]) as usize;
         assert_eq!(frame.len(), total_length);
     }
 

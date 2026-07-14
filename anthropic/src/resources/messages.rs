@@ -43,8 +43,8 @@ use serde::{Deserialize, Serialize};
 use crate::client::Anthropic;
 use crate::error::{Error, Result};
 use crate::types::{
-    Message, MessageCreateParams, MessageParam, MessageTokensCount, Model,
-    SystemPrompt, ThinkingConfig, Tool, ToolChoice,
+    Message, MessageCreateParams, MessageParam, MessageTokensCount, Model, SystemPrompt,
+    ThinkingConfig, Tool, ToolChoice,
 };
 
 // =============================================================================
@@ -251,7 +251,10 @@ impl Messages {
     /// let count = client.messages().count_tokens(params).await?;
     /// println!("Input tokens: {}", count.input_tokens);
     /// ```
-    pub async fn count_tokens(&self, params: MessageCountTokensParams) -> Result<MessageTokensCount> {
+    pub async fn count_tokens(
+        &self,
+        params: MessageCountTokensParams,
+    ) -> Result<MessageTokensCount> {
         self.client.post(COUNT_TOKENS_ENDPOINT, &params).await
     }
 }

@@ -328,7 +328,13 @@ impl GoogleCredentials {
     ///
     /// This only works when running on Google Cloud infrastructure.
     pub async fn from_gce_metadata() -> Result<Self> {
-        Self::from_gce_metadata_with_scopes(&DEFAULT_SCOPES.iter().map(|&s| s.to_string()).collect::<Vec<_>>()).await
+        Self::from_gce_metadata_with_scopes(
+            &DEFAULT_SCOPES
+                .iter()
+                .map(|&s| s.to_string())
+                .collect::<Vec<_>>(),
+        )
+        .await
     }
 
     /// Creates credentials from GCE metadata service with custom scopes.
@@ -686,16 +692,15 @@ v2plKta7feKH6MFXAB9akHLVk/b9cLDy2B8r9bb8L0F6fpmC/fMT
         write!(temp_file, "{}", serde_json::to_string(&key).unwrap()).unwrap();
 
         let custom_scopes = &["https://www.googleapis.com/auth/compute"];
-        let creds =
-            GoogleCredentials::from_service_account_file_with_scopes(temp_file.path(), custom_scopes)
-                .await
-                .unwrap();
+        let creds = GoogleCredentials::from_service_account_file_with_scopes(
+            temp_file.path(),
+            custom_scopes,
+        )
+        .await
+        .unwrap();
 
         assert_eq!(creds.scopes().len(), 1);
-        assert_eq!(
-            creds.scopes()[0],
-            "https://www.googleapis.com/auth/compute"
-        );
+        assert_eq!(creds.scopes()[0], "https://www.googleapis.com/auth/compute");
     }
 
     #[tokio::test]

@@ -1,0 +1,42 @@
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+yanked = "deny"
+
+[licenses]
+version = 2
+# Derived from `cargo deny list` against the actual tree, not copied from a template.
+allow = [
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "MIT",
+    "MPL-2.0",          # option-ext, via dirs 5.x. File-level copyleft: fine to depend on,
+                        # does not reach our code. Dependabot's dirs 6.0 bump drops it.
+    "Unicode-3.0",
+    "Unlicense",
+]
+confidence-threshold = 0.8
+
+# r-efi is MIT OR Apache-2.0 OR LGPL-2.1-or-later. Take MIT — without this, cargo-deny
+# reports the LGPL arm and the job goes red on a crate that never compiles for our targets.
+[[licenses.clarify]]
+crate = "r-efi"
+expression = "MIT"
+license-files = []
+
+[bans]
+multiple-versions = "warn"   # windows-sys 0.48/0.52/0.61 etc. — noisy, not a risk
+wildcards = "deny"
+# The workspace's own crates are path deps with no version (anthropic-bedrock,
+# anthropic-vertex). Those are not wildcard supply-chain risks; without this the
+# job fails on our own code.
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

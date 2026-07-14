@@ -231,9 +231,9 @@ impl SkillsListResponse {
     #[must_use]
     pub fn next_page_params(&self) -> Option<SkillsListParams> {
         if self.has_more {
-            self.last_id.as_ref().map(|id| {
-                SkillsListParams::new().with_after_id(id.clone())
-            })
+            self.last_id
+                .as_ref()
+                .map(|id| SkillsListParams::new().with_after_id(id.clone()))
         } else {
             None
         }

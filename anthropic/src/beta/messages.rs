@@ -27,8 +27,8 @@ use std::sync::Arc;
 use crate::client::Anthropic;
 use crate::error::Result;
 use crate::types::content::{
-    ContentBlockParam, RedactedThinkingBlock, ServerToolUseBlock, TextBlock,
-    ThinkingBlock, ToolUseBlock, WebSearchToolResultBlock,
+    ContentBlockParam, RedactedThinkingBlock, ServerToolUseBlock, TextBlock, ThinkingBlock,
+    ToolUseBlock, WebSearchToolResultBlock,
 };
 use crate::types::model::Model;
 use crate::types::shared::{CacheControl, Metadata, Role};
@@ -96,7 +96,10 @@ impl BetaMessageService {
     /// # Arguments
     ///
     /// * `params` - Parameters for token counting
-    pub async fn count_tokens(&self, params: BetaMessageCountTokensParams) -> Result<BetaMessageTokensCount> {
+    pub async fn count_tokens(
+        &self,
+        params: BetaMessageCountTokensParams,
+    ) -> Result<BetaMessageTokensCount> {
         let beta_header = params
             .betas
             .iter()
@@ -1060,8 +1063,7 @@ mod tests {
 
     #[test]
     fn test_beta_text_block_param() {
-        let block = BetaTextBlockParam::new("Hello")
-            .with_cache_control(CacheControl::ephemeral());
+        let block = BetaTextBlockParam::new("Hello").with_cache_control(CacheControl::ephemeral());
         let json = serde_json::to_string(&block).unwrap();
         assert!(json.contains("\"type\":\"text\""));
         assert!(json.contains("\"text\":\"Hello\""));

@@ -143,30 +143,30 @@ pub mod eventstream;
 // Re-export main types
 pub use auth::AwsCredentials;
 pub use client::{
+    // Model constants
+    models,
     // Client
     BedrockClient,
     BedrockClientBuilder,
     BedrockConfig,
     BedrockConfigBuilder,
     BedrockStreamResponse,
+    // Message types
+    ContentBlock,
     // Request/Response types
     CreateMessageRequest,
     CreateMessageRequestBuilder,
     CreateMessageResponse,
-    // Message types
-    ContentBlock,
     ImageSource,
     Message,
     MessageContent,
     ResponseContentBlock,
     Role,
     StopReason,
-    Usage,
     // Tool types
     Tool,
     ToolChoice,
-    // Model constants
-    models,
+    Usage,
     // Constants
     ANTHROPIC_VERSION,
     DEFAULT_BEDROCK_VERSION,

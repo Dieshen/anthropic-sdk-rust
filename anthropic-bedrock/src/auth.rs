@@ -209,7 +209,9 @@ impl AwsCredentials {
             )));
         }
 
-        let session_token = std::env::var(ENV_AWS_SESSION_TOKEN).ok().filter(|s| !s.is_empty());
+        let session_token = std::env::var(ENV_AWS_SESSION_TOKEN)
+            .ok()
+            .filter(|s| !s.is_empty());
 
         debug!(
             access_key_id_len = access_key_id.len(),
@@ -403,14 +405,17 @@ pub fn sign_request(request: &SigningRequest<'_>) -> Result<Vec<(String, String)
     let credential_scope = format!("{date}/{}/{SERVICE_NAME}/aws4_request", request.region);
 
     // Build string to sign
-    let string_to_sign = format!(
-        "{AWS4_ALGORITHM}\n{date_time}\n{credential_scope}\n{canonical_request_hash}"
-    );
+    let string_to_sign =
+        format!("{AWS4_ALGORITHM}\n{date_time}\n{credential_scope}\n{canonical_request_hash}");
 
     trace!(string_to_sign = %string_to_sign, "Built string to sign");
 
     // Calculate signing key
-    let signing_key = derive_signing_key(request.credentials.secret_access_key(), &date, request.region)?;
+    let signing_key = derive_signing_key(
+        request.credentials.secret_access_key(),
+        &date,
+        request.region,
+    )?;
 
     // Calculate signature
     let signature = hmac_sha256_hex(&signing_key, string_to_sign.as_bytes())?;
@@ -524,11 +529,7 @@ mod tests {
 
     #[test]
     fn test_credentials_with_session_token() {
-        let creds = AwsCredentials::new(
-            "ASIAXXX",
-            "secret",
-            Some("session-token".to_string()),
-        );
+        let creds = AwsCredentials::new("ASIAXXX", "secret", Some("session-token".to_string()));
 
         assert!(creds.session_token().is_some());
         assert_eq!(creds.session_token().unwrap(), "session-token");
@@ -667,11 +668,7 @@ mod tests {
 
     #[test]
     fn test_sign_request_with_session_token() {
-        let creds = AwsCredentials::new(
-            "ASIAXXX",
-            "secret",
-            Some("session-token".to_string()),
-        );
+        let creds = AwsCredentials::new("ASIAXXX", "secret", Some("session-token".to_string()));
 
         let request = SigningRequest {
             credentials: &creds,
@@ -747,7 +744,10 @@ mod tests {
     #[test]
     fn test_signed_request_struct() {
         let headers = vec![
-            ("authorization".to_string(), "AWS4-HMAC-SHA256...".to_string()),
+            (
+                "authorization".to_string(),
+                "AWS4-HMAC-SHA256...".to_string(),
+            ),
             ("x-amz-date".to_string(), "20240101T000000Z".to_string()),
         ];
         let signed_at = Utc::now();

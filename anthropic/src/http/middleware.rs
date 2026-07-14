@@ -81,7 +81,10 @@ impl std::fmt::Debug for Next<'_> {
 impl<'a> Next<'a> {
     /// Creates a new Next with the given middlewares.
     pub(crate) fn new(middlewares: &'a [Arc<dyn Middleware>], client: &'a Client) -> Self {
-        Self { middlewares, client }
+        Self {
+            middlewares,
+            client,
+        }
     }
 
     /// Calls the next middleware in the chain or executes the request.
@@ -320,7 +323,10 @@ impl<P: RetryPolicy + Clone + 'static> Middleware for RetryMiddleware<P> {
             let method = request.method().clone();
             let url = request.url().clone();
             let headers = request.headers().clone();
-            let body = request.body().and_then(|b| b.as_bytes()).map(|b| b.to_vec());
+            let body = request
+                .body()
+                .and_then(|b| b.as_bytes())
+                .map(|b| b.to_vec());
 
             let mut attempt = 0u32;
 
@@ -328,7 +334,9 @@ impl<P: RetryPolicy + Clone + 'static> Middleware for RetryMiddleware<P> {
                 attempt += 1;
 
                 // Rebuild the request for each attempt
-                let mut builder = client.request(method.clone(), url.clone()).headers(headers.clone());
+                let mut builder = client
+                    .request(method.clone(), url.clone())
+                    .headers(headers.clone());
                 if let Some(ref body_bytes) = body {
                     builder = builder.body(body_bytes.clone());
                 }
@@ -348,9 +356,12 @@ impl<P: RetryPolicy + Clone + 'static> Middleware for RetryMiddleware<P> {
                         }
 
                         // For error responses, we need to check if they're retryable
-                        if status.is_server_error() || status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                        if status.is_server_error()
+                            || status == reqwest::StatusCode::TOO_MANY_REQUESTS
+                        {
                             // Get retry delay from response headers
-                            let retry_after = crate::http::response::parse_retry_after(response.headers());
+                            let retry_after =
+                                crate::http::response::parse_retry_after(response.headers());
 
                             // Create an error to check retry policy
                             let error = Error::RateLimited {
@@ -590,9 +601,7 @@ mod tests {
 
     #[test]
     fn test_logging_middleware_configuration() {
-        let middleware = LoggingMiddleware::new()
-            .with_headers()
-            .with_bodies();
+        let middleware = LoggingMiddleware::new().with_headers().with_bodies();
 
         assert!(middleware.log_headers);
         assert!(middleware.log_bodies);
@@ -606,9 +615,7 @@ mod tests {
 
     #[test]
     fn test_retry_middleware_custom_config() {
-        let config = RetryConfig::builder()
-            .max_retries(5)
-            .build();
+        let config = RetryConfig::builder().max_retries(5).build();
         let middleware = RetryMiddleware::new(config);
         assert_eq!(middleware.policy.config().max_retries, 5);
     }

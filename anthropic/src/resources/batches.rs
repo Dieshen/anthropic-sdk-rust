@@ -522,8 +522,12 @@ impl Batches {
     pub async fn results_stream(
         &self,
         batch_id: &str,
-    ) -> Result<JsonlStream<BatchResult, impl Stream<Item = std::result::Result<bytes::Bytes, reqwest::Error>>>>
-    {
+    ) -> Result<
+        JsonlStream<
+            BatchResult,
+            impl Stream<Item = std::result::Result<bytes::Bytes, reqwest::Error>>,
+        >,
+    > {
         if batch_id.is_empty() {
             return Err(Error::config("batch_id cannot be empty"));
         }

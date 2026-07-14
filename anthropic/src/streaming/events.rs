@@ -7,8 +7,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    ContentBlock, Message, ServerToolUseBlock, StopReason, TextBlock, ThinkingBlock,
-    ToolUseBlock, WebSearchToolResultBlock,
+    ContentBlock, Message, ServerToolUseBlock, StopReason, TextBlock, ThinkingBlock, ToolUseBlock,
+    WebSearchToolResultBlock,
 };
 
 // =============================================================================
@@ -227,20 +227,23 @@ impl ContentBlockStartContent {
                 thinking,
                 signature: None,
             }),
-            Self::ToolUse { id, name, input } => ContentBlock::ToolUse(ToolUseBlock { id, name, input }),
+            Self::ToolUse { id, name, input } => {
+                ContentBlock::ToolUse(ToolUseBlock { id, name, input })
+            }
             Self::ServerToolUse { id, name, input } => {
                 ContentBlock::ServerToolUse(ServerToolUseBlock { id, name, input })
             }
-            Self::WebSearchToolResult { tool_use_id, content } => {
-                ContentBlock::WebSearchToolResult(WebSearchToolResultBlock {
-                    tool_use_id,
-                    content: serde_json::from_value(content).unwrap_or_else(|_| {
-                        crate::types::WebSearchResultContent::Error {
-                            error: "Failed to parse content".to_string(),
-                        }
-                    }),
-                })
-            }
+            Self::WebSearchToolResult {
+                tool_use_id,
+                content,
+            } => ContentBlock::WebSearchToolResult(WebSearchToolResultBlock {
+                tool_use_id,
+                content: serde_json::from_value(content).unwrap_or_else(|_| {
+                    crate::types::WebSearchResultContent::Error {
+                        error: "Failed to parse content".to_string(),
+                    }
+                }),
+            }),
             Self::RedactedThinking { data } => {
                 ContentBlock::RedactedThinking(crate::types::RedactedThinkingBlock { data })
             }
@@ -515,7 +518,10 @@ mod tests {
 
         let event: StreamEvent = serde_json::from_str(json).unwrap();
         match event {
-            StreamEvent::ContentBlockStart { index, content_block } => {
+            StreamEvent::ContentBlockStart {
+                index,
+                content_block,
+            } => {
                 assert_eq!(index, 0);
                 assert!(content_block.is_text());
             }
@@ -538,7 +544,10 @@ mod tests {
 
         let event: StreamEvent = serde_json::from_str(json).unwrap();
         match event {
-            StreamEvent::ContentBlockStart { index, content_block } => {
+            StreamEvent::ContentBlockStart {
+                index,
+                content_block,
+            } => {
                 assert_eq!(index, 1);
                 assert!(content_block.is_tool_use());
             }
@@ -597,7 +606,10 @@ mod tests {
         }"#;
 
         let event: StreamEvent = serde_json::from_str(json).unwrap();
-        assert_eq!(event.as_thinking_delta(), Some("Let me think about this..."));
+        assert_eq!(
+            event.as_thinking_delta(),
+            Some("Let me think about this...")
+        );
     }
 
     #[test]

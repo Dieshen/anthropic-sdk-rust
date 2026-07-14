@@ -258,7 +258,9 @@ impl BedrockConfigBuilder {
         Ok(BedrockConfig {
             region,
             credentials,
-            timeout: self.timeout.unwrap_or(Duration::from_secs(DEFAULT_TIMEOUT_SECS)),
+            timeout: self
+                .timeout
+                .unwrap_or(Duration::from_secs(DEFAULT_TIMEOUT_SECS)),
             max_retries: self.max_retries.unwrap_or(DEFAULT_MAX_RETRIES),
             custom_headers: self.custom_headers,
         })
@@ -784,7 +786,10 @@ impl BedrockClient {
             .map_err(Error::Http)?;
 
         Ok(Self {
-            inner: Arc::new(BedrockClientInner { http_client, config }),
+            inner: Arc::new(BedrockClientInner {
+                http_client,
+                config,
+            }),
         })
     }
 
@@ -897,21 +902,14 @@ impl BedrockClient {
 
         // Parse response
         let response_body = response.bytes().await?;
-        trace!(
-            body_len = response_body.len(),
-            "Received response body"
-        );
+        trace!(body_len = response_body.len(), "Received response body");
 
         let parsed: R = serde_json::from_slice(&response_body)?;
         Ok(parsed)
     }
 
     /// Invokes a Bedrock model with streaming response.
-    async fn invoke_model_stream<T>(
-        &self,
-        path: &str,
-        request: &T,
-    ) -> Result<BedrockStreamResponse>
+    async fn invoke_model_stream<T>(&self, path: &str, request: &T) -> Result<BedrockStreamResponse>
     where
         T: Serialize,
     {
@@ -928,11 +926,7 @@ impl BedrockClient {
     }
 
     /// Sends a signed request to Bedrock.
-    async fn send_signed_request(
-        &self,
-        path: &str,
-        body: &[u8],
-    ) -> Result<reqwest::Response> {
+    async fn send_signed_request(&self, path: &str, body: &[u8]) -> Result<reqwest::Response> {
         let config = &self.inner.config;
         let host = config.host();
         let url = format!("https://{host}{path}");
@@ -958,11 +952,7 @@ impl BedrockClient {
         let signed_headers = sign_request(&signing_request)?;
 
         // Build the request
-        let mut request_builder = self
-            .inner
-            .http_client
-            .post(&url)
-            .body(body.to_vec());
+        let mut request_builder = self.inner.http_client.post(&url).body(body.to_vec());
 
         // Add signed headers
         for (name, value) in signed_headers {
@@ -976,11 +966,7 @@ impl BedrockClient {
     }
 
     /// Parses an error response from Bedrock.
-    async fn parse_error_response(
-        &self,
-        status: StatusCode,
-        response: reqwest::Response,
-    ) -> Error {
+    async fn parse_error_response(&self, status: StatusCode, response: reqwest::Response) -> Error {
         let body = response
             .text()
             .await
@@ -1176,9 +1162,7 @@ mod tests {
 
     #[test]
     fn test_create_message_request_serialization() {
-        let request = CreateMessageRequest::builder(1024)
-            .user("Hello!")
-            .build();
+        let request = CreateMessageRequest::builder(1024).user("Hello!").build();
 
         let json = serde_json::to_string(&request).unwrap();
         assert!(json.contains("\"max_tokens\":1024"));

@@ -76,9 +76,8 @@ pub use content::{
     ContentBlockParam, DocumentBlockParam, DocumentSource, ImageBlockParam, ImageSource,
     PageLocationCitation, RedactedThinkingBlock, RedactedThinkingBlockParam, ServerToolUseBlock,
     TextBlock, TextBlockParam, ThinkingBlock, ThinkingBlockParam, ToolResultBlockParam,
-    ToolResultContent, ToolResultContentBlock, ToolUseBlock, ToolUseBlockParam,
-    WebSearchResult, WebSearchResultContent, WebSearchResultLocationCitation,
-    WebSearchToolResultBlock,
+    ToolResultContent, ToolResultContentBlock, ToolUseBlock, ToolUseBlockParam, WebSearchResult,
+    WebSearchResultContent, WebSearchResultLocationCitation, WebSearchToolResultBlock,
 };
 
 pub use message::{

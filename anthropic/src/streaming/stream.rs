@@ -12,8 +12,8 @@ use pin_project_lite::pin_project;
 
 use super::events::{
     ContentBlockDelta, ContentBlockStartContent, MessageDelta, MessageDeltaUsage,
-    RawContentBlockDeltaEvent, RawContentBlockStartEvent, RawContentBlockStopEvent,
-    RawErrorEvent, RawMessageDeltaEvent, RawMessageStartEvent, StreamEvent,
+    RawContentBlockDeltaEvent, RawContentBlockStartEvent, RawContentBlockStopEvent, RawErrorEvent,
+    RawMessageDeltaEvent, RawMessageStartEvent, StreamEvent,
 };
 use super::sse::{SseDecoder, SseError, SseEvent};
 use crate::types::{ContentBlock, Message, Usage};
@@ -167,12 +167,16 @@ impl StreamState {
                 self.usage = Some(message.usage.clone());
             }
 
-            StreamEvent::ContentBlockStart { index, content_block } => {
+            StreamEvent::ContentBlockStart {
+                index,
+                content_block,
+            } => {
                 let idx = *index as usize;
 
                 // Ensure we have space for this index
                 while self.content_blocks.len() <= idx {
-                    self.content_blocks.push(ContentBlock::Text(crate::types::TextBlock::new("")));
+                    self.content_blocks
+                        .push(ContentBlock::Text(crate::types::TextBlock::new("")));
                     self.text_buffers.push(String::new());
                     self.input_json_buffers.push(String::new());
                 }
@@ -201,7 +205,9 @@ impl StreamState {
                     }
                     ContentBlockDelta::ThinkingDelta { thinking } => {
                         // Update thinking block
-                        if let Some(ContentBlock::Thinking(block)) = self.content_blocks.get_mut(idx) {
+                        if let Some(ContentBlock::Thinking(block)) =
+                            self.content_blocks.get_mut(idx)
+                        {
                             block.thinking.push_str(thinking);
                         }
                     }
@@ -210,7 +216,9 @@ impl StreamState {
                     }
                     ContentBlockDelta::SignatureDelta { signature } => {
                         // Update thinking block signature
-                        if let Some(ContentBlock::Thinking(block)) = self.content_blocks.get_mut(idx) {
+                        if let Some(ContentBlock::Thinking(block)) =
+                            self.content_blocks.get_mut(idx)
+                        {
                             let sig = block.signature.get_or_insert_with(String::new);
                             sig.push_str(signature);
                         }
@@ -786,7 +794,10 @@ mod tests {
             r#"{"index":0,"content_block":{"type":"text","text":""}}"#,
         );
         let result = parse_sse_event(&event).unwrap();
-        assert!(matches!(result, Some(StreamEvent::ContentBlockStart { .. })));
+        assert!(matches!(
+            result,
+            Some(StreamEvent::ContentBlockStart { .. })
+        ));
 
         // content_block_delta
         let event = SseEvent::new(
@@ -794,7 +805,10 @@ mod tests {
             r#"{"index":0,"delta":{"type":"text_delta","text":"hi"}}"#,
         );
         let result = parse_sse_event(&event).unwrap();
-        assert!(matches!(result, Some(StreamEvent::ContentBlockDelta { .. })));
+        assert!(matches!(
+            result,
+            Some(StreamEvent::ContentBlockDelta { .. })
+        ));
 
         // content_block_stop
         let event = SseEvent::new("content_block_stop", r#"{"index":0}"#);
@@ -830,6 +844,9 @@ mod tests {
         // unknown event type
         let event = SseEvent::new("unknown_type", r#"{}"#);
         let result = parse_sse_event(&event);
-        assert!(matches!(result, Err(MessageStreamError::UnexpectedEvent(_))));
+        assert!(matches!(
+            result,
+            Err(MessageStreamError::UnexpectedEvent(_))
+        ));
     }
 }

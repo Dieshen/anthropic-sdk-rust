@@ -204,14 +204,8 @@ impl ClientConfigBuilder {
     ///     .api_key("sk-ant-...")
     ///     .header("X-Custom-Header", "custom-value");
     /// ```
-    pub fn header(
-        &mut self,
-        name: impl AsRef<str>,
-        value: impl AsRef<str>,
-    ) -> &mut Self {
-        let headers = self
-            .default_headers
-            .get_or_insert_with(|| HeaderMap::new());
+    pub fn header(&mut self, name: impl AsRef<str>, value: impl AsRef<str>) -> &mut Self {
+        let headers = self.default_headers.get_or_insert_with(|| HeaderMap::new());
         if let (Ok(name), Ok(value)) = (
             HeaderName::try_from(name.as_ref()),
             HeaderValue::try_from(value.as_ref()),
@@ -318,9 +312,8 @@ impl ClientConfig {
         // Read base URL from environment
         if let Ok(url_str) = std::env::var(ENV_BASE_URL) {
             if !url_str.is_empty() {
-                let url = Url::parse(&url_str).map_err(|e| {
-                    Error::config(format!("Invalid base URL '{}': {}", url_str, e))
-                })?;
+                let url = Url::parse(&url_str)
+                    .map_err(|e| Error::config(format!("Invalid base URL '{}': {}", url_str, e)))?;
                 builder.base_url(url);
             }
         }

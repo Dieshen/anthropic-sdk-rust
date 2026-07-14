@@ -165,11 +165,7 @@ pub struct ToolUseBlock {
 impl ToolUseBlock {
     /// Creates a new tool use block.
     #[must_use]
-    pub fn new(
-        id: impl Into<String>,
-        name: impl Into<String>,
-        input: serde_json::Value,
-    ) -> Self {
+    pub fn new(id: impl Into<String>, name: impl Into<String>, input: serde_json::Value) -> Self {
         Self {
             id: id.into(),
             name: name.into(),
@@ -657,7 +653,10 @@ impl ToolResultBlockParam {
 
     /// Creates a new tool result with structured content blocks.
     #[must_use]
-    pub fn with_blocks(tool_use_id: impl Into<String>, blocks: Vec<ToolResultContentBlock>) -> Self {
+    pub fn with_blocks(
+        tool_use_id: impl Into<String>,
+        blocks: Vec<ToolResultContentBlock>,
+    ) -> Self {
         Self {
             tool_use_id: tool_use_id.into(),
             content: ToolResultContent::Blocks(blocks),

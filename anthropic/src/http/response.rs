@@ -254,7 +254,8 @@ fn parse_error_response(
 
     // Try to parse as structured error response
     if let Ok(raw_error) = serde_json::from_slice::<RawApiErrorResponse>(body) {
-        let mut api_error = ApiError::new(status, raw_error.error.error_type, raw_error.error.message);
+        let mut api_error =
+            ApiError::new(status, raw_error.error.error_type, raw_error.error.message);
 
         if let Some(req_id) = request_id {
             api_error = api_error.with_request_id(req_id);
@@ -325,10 +326,7 @@ mod tests {
     #[test]
     fn test_extract_request_id() {
         let mut headers = HeaderMap::new();
-        headers.insert(
-            HEADER_REQUEST_ID,
-            HeaderValue::from_static("req_abc123"),
-        );
+        headers.insert(HEADER_REQUEST_ID, HeaderValue::from_static("req_abc123"));
 
         let request_id = extract_request_id(&headers);
         assert_eq!(request_id, Some("req_abc123".to_string()));
@@ -423,10 +421,7 @@ mod tests {
         }"#;
 
         let mut headers = HeaderMap::new();
-        headers.insert(
-            HEADER_REQUEST_ID,
-            HeaderValue::from_static("req_test123"),
-        );
+        headers.insert(HEADER_REQUEST_ID, HeaderValue::from_static("req_test123"));
 
         let error = parse_error_response(
             StatusCode::BAD_REQUEST,

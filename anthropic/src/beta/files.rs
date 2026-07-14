@@ -188,9 +188,9 @@ impl FilesListResponse {
     #[must_use]
     pub fn next_page_params(&self) -> Option<FilesListParams> {
         if self.has_more {
-            self.last_id.as_ref().map(|id| {
-                FilesListParams::new().with_after_id(id.clone())
-            })
+            self.last_id
+                .as_ref()
+                .map(|id| FilesListParams::new().with_after_id(id.clone()))
         } else {
             None
         }
@@ -229,7 +229,11 @@ impl FileUploadParams {
     /// * `filename` - The original filename
     /// * `mime_type` - The MIME type (e.g., "application/pdf", "image/png")
     #[must_use]
-    pub fn new(data: impl Into<Vec<u8>>, filename: impl Into<String>, mime_type: impl Into<String>) -> Self {
+    pub fn new(
+        data: impl Into<Vec<u8>>,
+        filename: impl Into<String>,
+        mime_type: impl Into<String>,
+    ) -> Self {
         Self {
             data: data.into(),
             filename: filename.into(),
@@ -571,7 +575,9 @@ impl Files {
         if file_id.is_empty() {
             return Err(Error::config("file_id cannot be empty"));
         }
-        self.client.get_bytes(&format!("v1/files/{}/content", file_id)).await
+        self.client
+            .get_bytes(&format!("v1/files/{}/content", file_id))
+            .await
     }
 
     /// Deletes a file.

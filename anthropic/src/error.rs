@@ -220,7 +220,8 @@ impl ApiError {
     /// Returns `true` if this is a rate limit error.
     #[must_use]
     pub fn is_rate_limited(&self) -> bool {
-        self.error_type == ApiErrorType::RateLimitError || self.status == StatusCode::TOO_MANY_REQUESTS
+        self.error_type == ApiErrorType::RateLimitError
+            || self.status == StatusCode::TOO_MANY_REQUESTS
     }
 
     /// Returns `true` if this is an overloaded error.

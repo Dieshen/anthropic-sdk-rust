@@ -33,7 +33,9 @@ use url::Url;
 
 use crate::config::{ClientConfig, ClientConfigBuilder};
 use crate::error::{ApiError, ApiErrorType, Error, RawApiErrorResponse, Result};
-use crate::http::{parse_retry_after, ExponentialBackoff, RetryConfig, RetryPolicy, HEADER_REQUEST_ID};
+use crate::http::{
+    parse_retry_after, ExponentialBackoff, RetryConfig, RetryPolicy, HEADER_REQUEST_ID,
+};
 
 // =============================================================================
 // Constants
@@ -154,10 +156,7 @@ impl Anthropic {
 
         // Add authentication header
         if let Some((name, value)) = config.auth_header() {
-            headers.insert(
-                HeaderName::try_from(name)?,
-                HeaderValue::try_from(value)?,
-            );
+            headers.insert(HeaderName::try_from(name)?, HeaderValue::try_from(value)?);
         }
 
         // Merge with custom headers from config
@@ -283,11 +282,7 @@ impl Anthropic {
     ///
     /// This is used internally for streaming requests where we need access
     /// to the raw response body.
-    pub(crate) async fn post_raw<B>(
-        &self,
-        path: &str,
-        body: &B,
-    ) -> Result<reqwest::Response>
+    pub(crate) async fn post_raw<B>(&self, path: &str, body: &B) -> Result<reqwest::Response>
     where
         B: serde::Serialize,
     {
@@ -337,8 +332,9 @@ impl Anthropic {
         let mut url = self.build_url(path)?;
 
         // Serialize query parameters and add to URL
-        let query_string = serde_urlencoded::to_string(query)
-            .map_err(|e| Error::RequestBuild(format!("Failed to serialize query parameters: {e}")))?;
+        let query_string = serde_urlencoded::to_string(query).map_err(|e| {
+            Error::RequestBuild(format!("Failed to serialize query parameters: {e}"))
+        })?;
         if !query_string.is_empty() {
             url.set_query(Some(&query_string));
         }
@@ -394,8 +390,10 @@ impl Anthropic {
 
                     // Check if we should retry
                     if error.is_retryable() {
-                        if let Some(delay) =
-                            self.inner.retry_policy.should_retry(&error.clone().into(), attempt)
+                        if let Some(delay) = self
+                            .inner
+                            .retry_policy
+                            .should_retry(&error.clone().into(), attempt)
                         {
                             debug!(delay = ?delay, attempt, "Retrying after error");
                             tokio::time::sleep(delay).await;
@@ -410,8 +408,7 @@ impl Anthropic {
 
                     // Check if we should retry
                     if error.is_retryable() {
-                        if let Some(delay) = self.inner.retry_policy.should_retry(&error, attempt)
-                        {
+                        if let Some(delay) = self.inner.retry_policy.should_retry(&error, attempt) {
                             debug!(delay = ?delay, attempt, "Retrying after error");
                             tokio::time::sleep(delay).await;
                             continue;
@@ -482,8 +479,10 @@ impl Anthropic {
 
                     // Check if we should retry
                     if error.is_retryable() {
-                        if let Some(delay) =
-                            self.inner.retry_policy.should_retry(&error.clone().into(), attempt)
+                        if let Some(delay) = self
+                            .inner
+                            .retry_policy
+                            .should_retry(&error.clone().into(), attempt)
                         {
                             debug!(delay = ?delay, attempt, "Retrying after error");
                             tokio::time::sleep(delay).await;
@@ -498,8 +497,7 @@ impl Anthropic {
 
                     // Check if we should retry
                     if error.is_retryable() {
-                        if let Some(delay) = self.inner.retry_policy.should_retry(&error, attempt)
-                        {
+                        if let Some(delay) = self.inner.retry_policy.should_retry(&error, attempt) {
                             debug!(delay = ?delay, attempt, "Retrying after error");
                             tokio::time::sleep(delay).await;
                             continue;
@@ -530,29 +528,31 @@ impl Anthropic {
         // Try to parse the error body
         let error_body = response.text().await.unwrap_or_default();
 
-        let (error_type, message) = if let Ok(raw_error) =
-            serde_json::from_str::<RawApiErrorResponse>(&error_body)
-        {
-            (raw_error.error.error_type, raw_error.error.message)
-        } else {
-            // Fallback: infer error type from status code
-            let error_type = match status.as_u16() {
-                400 => ApiErrorType::InvalidRequestError,
-                401 => ApiErrorType::AuthenticationError,
-                403 => ApiErrorType::PermissionError,
-                404 => ApiErrorType::NotFoundError,
-                429 => ApiErrorType::RateLimitError,
-                529 => ApiErrorType::OverloadedError,
-                _ if status.is_server_error() => ApiErrorType::ApiError,
-                _ => ApiErrorType::Unknown,
-            };
-            let message = if error_body.is_empty() {
-                status.canonical_reason().unwrap_or("Unknown error").to_string()
+        let (error_type, message) =
+            if let Ok(raw_error) = serde_json::from_str::<RawApiErrorResponse>(&error_body) {
+                (raw_error.error.error_type, raw_error.error.message)
             } else {
-                error_body
+                // Fallback: infer error type from status code
+                let error_type = match status.as_u16() {
+                    400 => ApiErrorType::InvalidRequestError,
+                    401 => ApiErrorType::AuthenticationError,
+                    403 => ApiErrorType::PermissionError,
+                    404 => ApiErrorType::NotFoundError,
+                    429 => ApiErrorType::RateLimitError,
+                    529 => ApiErrorType::OverloadedError,
+                    _ if status.is_server_error() => ApiErrorType::ApiError,
+                    _ => ApiErrorType::Unknown,
+                };
+                let message = if error_body.is_empty() {
+                    status
+                        .canonical_reason()
+                        .unwrap_or("Unknown error")
+                        .to_string()
+                } else {
+                    error_body
+                };
+                (error_type, message)
             };
-            (error_type, message)
-        };
 
         let mut error = ApiError::new(status, error_type, message);
 
@@ -738,10 +738,7 @@ mod tests {
             .build()
             .expect("Failed to build client");
 
-        assert_eq!(
-            client.base_url().as_str(),
-            "https://custom.example.com/"
-        );
+        assert_eq!(client.base_url().as_str(), "https://custom.example.com/");
         assert_eq!(client.max_retries(), 5);
         assert_eq!(client.timeout(), Duration::from_secs(30));
     }
@@ -753,10 +750,14 @@ mod tests {
             .build()
             .expect("Failed to build client");
 
-        let url = client.build_url("/v1/messages").expect("Failed to build URL");
+        let url = client
+            .build_url("/v1/messages")
+            .expect("Failed to build URL");
         assert_eq!(url.as_str(), "https://api.anthropic.com/v1/messages");
 
-        let url = client.build_url("v1/messages").expect("Failed to build URL");
+        let url = client
+            .build_url("v1/messages")
+            .expect("Failed to build URL");
         assert_eq!(url.as_str(), "https://api.anthropic.com/v1/messages");
     }
 

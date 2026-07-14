@@ -557,7 +557,10 @@ impl VertexClient {
             status: status.as_u16(),
             error_type: "unknown".to_string(),
             message: if body.is_empty() {
-                status.canonical_reason().unwrap_or("Unknown error").to_string()
+                status
+                    .canonical_reason()
+                    .unwrap_or("Unknown error")
+                    .to_string()
             } else {
                 body
             },
@@ -1450,7 +1453,10 @@ mod tests {
         );
 
         let global_config = VertexConfig::new("global", "my-project");
-        assert_eq!(global_config.base_url(), "https://aiplatform.googleapis.com");
+        assert_eq!(
+            global_config.base_url(),
+            "https://aiplatform.googleapis.com"
+        );
     }
 
     #[test]

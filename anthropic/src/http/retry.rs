@@ -276,7 +276,10 @@ impl ExponentialBackoff {
 
         // Calculate exponential backoff
         let base_delay_ms = self.config.initial_delay.as_millis() as f64
-            * self.config.multiplier.powi(attempt.saturating_sub(1) as i32);
+            * self
+                .config
+                .multiplier
+                .powi(attempt.saturating_sub(1) as i32);
 
         let capped_delay_ms = base_delay_ms.min(self.config.max_delay.as_millis() as f64);
 
@@ -427,8 +430,14 @@ mod tests {
     fn test_retry_config_default() {
         let config = RetryConfig::default();
         assert_eq!(config.max_retries, DEFAULT_MAX_RETRIES);
-        assert_eq!(config.initial_delay, Duration::from_millis(DEFAULT_INITIAL_DELAY_MS));
-        assert_eq!(config.max_delay, Duration::from_millis(DEFAULT_MAX_DELAY_MS));
+        assert_eq!(
+            config.initial_delay,
+            Duration::from_millis(DEFAULT_INITIAL_DELAY_MS)
+        );
+        assert_eq!(
+            config.max_delay,
+            Duration::from_millis(DEFAULT_MAX_DELAY_MS)
+        );
         assert!((config.multiplier - DEFAULT_MULTIPLIER).abs() < f64::EPSILON);
     }
 

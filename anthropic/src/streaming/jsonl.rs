@@ -78,7 +78,9 @@ where
     /// # Arguments
     ///
     /// * `response` - The reqwest Response to stream from
-    pub fn from_response(response: reqwest::Response) -> JsonlStream<T, impl Stream<Item = std::result::Result<Bytes, reqwest::Error>>> {
+    pub fn from_response(
+        response: reqwest::Response,
+    ) -> JsonlStream<T, impl Stream<Item = std::result::Result<Bytes, reqwest::Error>>> {
         JsonlStream::new(response.bytes_stream())
     }
 }
@@ -124,7 +126,9 @@ where
                 }
                 Poll::Ready(None) => {
                     // Stream ended - check if there's remaining data in buffer
-                    if this.buffer.is_empty() || this.buffer.iter().all(|&b| b.is_ascii_whitespace()) {
+                    if this.buffer.is_empty()
+                        || this.buffer.iter().all(|&b| b.is_ascii_whitespace())
+                    {
                         return Poll::Ready(None);
                     }
                     // Try to parse remaining buffer as final line
@@ -236,7 +240,10 @@ where
                     }
                 }
                 Err(e) => {
-                    return Some(Err(Error::Streaming(format!("IO error reading JSONL: {}", e))));
+                    return Some(Err(Error::Streaming(format!(
+                        "IO error reading JSONL: {}",
+                        e
+                    ))));
                 }
             }
         }
@@ -453,8 +460,18 @@ not valid json
     #[test]
     fn test_jsonl_encoder() {
         let mut encoder = JsonlEncoder::new();
-        encoder.push(&TestItem { id: "1".to_string(), value: 10 }).unwrap();
-        encoder.push(&TestItem { id: "2".to_string(), value: 20 }).unwrap();
+        encoder
+            .push(&TestItem {
+                id: "1".to_string(),
+                value: 10,
+            })
+            .unwrap();
+        encoder
+            .push(&TestItem {
+                id: "2".to_string(),
+                value: 20,
+            })
+            .unwrap();
 
         let output = encoder.into_string();
         assert!(output.contains(r#"{"id":"1","value":10}"#));
@@ -476,8 +493,14 @@ not valid json
     #[test]
     fn test_encode_jsonl() {
         let items = vec![
-            TestItem { id: "1".to_string(), value: 10 },
-            TestItem { id: "2".to_string(), value: 20 },
+            TestItem {
+                id: "1".to_string(),
+                value: 10,
+            },
+            TestItem {
+                id: "2".to_string(),
+                value: 20,
+            },
         ];
 
         let output = encode_jsonl(&items).unwrap();
@@ -497,7 +520,12 @@ not valid json
     #[test]
     fn test_encoder_clear() {
         let mut encoder = JsonlEncoder::new();
-        encoder.push(&TestItem { id: "1".to_string(), value: 10 }).unwrap();
+        encoder
+            .push(&TestItem {
+                id: "1".to_string(),
+                value: 10,
+            })
+            .unwrap();
         assert!(!encoder.is_empty());
 
         encoder.clear();
@@ -507,9 +535,18 @@ not valid json
     #[test]
     fn test_roundtrip() {
         let original = vec![
-            TestItem { id: "a".to_string(), value: 1 },
-            TestItem { id: "b".to_string(), value: 2 },
-            TestItem { id: "c".to_string(), value: 3 },
+            TestItem {
+                id: "a".to_string(),
+                value: 1,
+            },
+            TestItem {
+                id: "b".to_string(),
+                value: 2,
+            },
+            TestItem {
+                id: "c".to_string(),
+                value: 3,
+            },
         ];
 
         let encoded = encode_jsonl(&original).unwrap();

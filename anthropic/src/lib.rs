@@ -66,31 +66,60 @@ pub use error::{ApiError, ApiErrorType, Error, Result};
 
 // Re-export types module at top level
 pub use types::{
+    BatchCreateParams,
+    BatchRequest,
+    BatchResult,
+    CacheControl,
+    // Content
+    ContentBlock,
+    ContentBlockParam,
+    // Messages
+    Message,
+    // Batch
+    MessageBatch,
+    MessageContent,
+    MessageCreateParams,
+    MessageCreateParamsBuilder,
+    MessageParam,
+    MessageTokensCount,
+    Metadata,
     // Models
     Model,
-    // Messages
-    Message, MessageContent, MessageCreateParams, MessageCreateParamsBuilder, MessageParam,
-    MessageTokensCount, SystemPrompt, ThinkingConfig,
-    // Content
-    ContentBlock, ContentBlockParam, TextBlock, TextBlockParam,
-    ToolUseBlock, ToolResultBlockParam,
-    // Tools
-    Tool, ToolParam, ToolChoice, ToolInputSchema,
     // Shared
-    Role, StopReason, CacheControl, Metadata,
+    Role,
+    StopReason,
+    SystemPrompt,
+    TextBlock,
+    TextBlockParam,
+    ThinkingConfig,
+    // Tools
+    Tool,
+    ToolChoice,
+    ToolInputSchema,
+    ToolParam,
+    ToolResultBlockParam,
+    ToolUseBlock,
     // Usage
     Usage,
-    // Batch
-    MessageBatch, BatchRequest, BatchCreateParams, BatchResult,
 };
 
 // Re-export resources
 pub use resources::{
     // Messages
-    ContentBlockStart, ContentDelta, MessageCountTokensParams, MessageDeltaContent, Messages,
-    MessageStream, StreamError, StreamEvent,
+    ContentBlockStart,
+    ContentDelta,
+    MessageCountTokensParams,
+    MessageDeltaContent,
+    MessageStream,
+    Messages,
     // Models
-    ModelInfo, Models, ModelsGetParams, ModelsListParams, ModelsListResponse,
+    ModelInfo,
+    Models,
+    ModelsGetParams,
+    ModelsListParams,
+    ModelsListResponse,
+    StreamError,
+    StreamEvent,
 };
 
 #[cfg(test)]
