@@ -24,6 +24,7 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use super::HEADER_ANTHROPIC_BETA;
 use crate::client::Anthropic;
 use crate::error::Result;
 use crate::types::content::{
@@ -84,20 +85,10 @@ impl BetaMessageService {
     /// let message = client.beta().messages().create(params).await?;
     /// ```
     pub async fn create(&self, params: BetaMessageCreateParams) -> Result<BetaMessage> {
-        // Build beta headers from features
-        let beta_header = params
-            .betas
-            .iter()
-            .map(super::BetaFeature::as_str)
-            .collect::<Vec<_>>()
-            .join(",");
-
-        // Make the request with beta headers
-        // Note: In a full implementation, we would add the header to the request
-        // For now, we use the standard endpoint
-        // TODO: inject beta_header into the request (not currently wired up).
-        let _ = beta_header;
-        self.client.post("v1/messages?beta=true", &params).await
+        let headers = beta_headers(&params.betas);
+        self.client
+            .post_with_headers("v1/messages", &params, &headers)
+            .await
     }
 
     /// Counts tokens in a beta message without creating it.
@@ -116,19 +107,27 @@ impl BetaMessageService {
         &self,
         params: BetaMessageCountTokensParams,
     ) -> Result<BetaMessageTokensCount> {
-        let beta_header = params
-            .betas
-            .iter()
-            .map(super::BetaFeature::as_str)
-            .collect::<Vec<_>>()
-            .join(",");
-
-        // TODO: inject beta_header into the request (not currently wired up).
-        let _ = beta_header;
+        let headers = beta_headers(&params.betas);
         self.client
-            .post("v1/messages/count_tokens?beta=true", &params)
+            .post_with_headers("v1/messages/count_tokens", &params, &headers)
             .await
     }
+}
+
+/// Builds the `anthropic-beta` header from the opted-in features.
+///
+/// Returns an empty slice when no betas were requested, so a plain request is
+/// not decorated with an empty header.
+fn beta_headers(betas: &[BetaFeature]) -> Vec<(&'static str, String)> {
+    if betas.is_empty() {
+        return Vec::new();
+    }
+    let value = betas
+        .iter()
+        .map(BetaFeature::as_str)
+        .collect::<Vec<_>>()
+        .join(",");
+    vec![(HEADER_ANTHROPIC_BETA, value)]
 }
 
 // =============================================================================
@@ -1102,5 +1101,245 @@ mod tests {
         assert!(message.has_thinking());
         assert_eq!(message.thinking(), "Let me think...");
         assert_eq!(message.text(), "Hello!");
+    }
+
+    // =========================================================================
+    // The anthropic-beta header must actually reach the wire.
+    //
+    // These tests exist because the previous test for this feature was:
+    //
+    //     .with_beta(BetaFeature::InterleavedThinking20250122);
+    //     assert_eq!(params.betas.len(), 1);
+    //
+    // which asserts only that the builder stored the value in the struct. It
+    // passed for the entire time the header was being computed and then thrown
+    // away (`let _ = beta_header;`), because nothing in it could observe a
+    // request. A test whose assertion names only its own input cannot fail.
+    //
+    // These assert against a real HTTP request, so they go red if the header is
+    // dropped again. Verified by sabotage: reverting `create` to `post()` makes
+    // `beta_header_reaches_the_wire` fail on the mock's header matcher.
+    // =========================================================================
+
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    fn beta_message_response() -> serde_json::Value {
+        serde_json::json!({
+            "id": "msg_test",
+            "type": "message",
+            "role": "assistant",
+            "content": [{"type": "text", "text": "Hi"}],
+            "model": "claude-sonnet-4-5",
+            "stop_reason": "end_turn",
+            "stop_sequence": null,
+            "usage": {"input_tokens": 1, "output_tokens": 1}
+        })
+    }
+
+    /// Reads `anthropic-beta` off the single request the mock received.
+    ///
+    /// `None` means the header was ABSENT. `Some("")` means it was PRESENT AND
+    /// EMPTY — those are different, and conflating them makes
+    /// `no_betas_means_no_beta_header` unable to fail. (It did, in the first
+    /// draft of this helper: an empty `join(",")` sends `anthropic-beta: ""`,
+    /// and mapping that to `None` meant the test passed whether or not the
+    /// empty-betas guard existed. Only sabotaging the guard revealed it.)
+    ///
+    /// wiremock splits a comma-joined header into HTTP's multi-value list, so
+    /// rejoin it — the SDK sends ONE header whose value contains commas.
+    async fn sent_beta_header(server: &MockServer) -> Option<String> {
+        let reqs = server
+            .received_requests()
+            .await
+            .expect("no requests recorded");
+        let req = reqs.first().expect("mock received no request at all");
+
+        let values: Vec<&str> = req
+            .headers
+            .get_all("anthropic-beta")
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .collect();
+
+        // Empty vec => the header was not sent at all.
+        // Vec of [""]  => the header WAS sent, with an empty value. Not the same thing.
+        if values.is_empty() {
+            None
+        } else {
+            Some(values.join(","))
+        }
+    }
+
+    fn client_for(server: &MockServer) -> crate::Anthropic {
+        crate::Anthropic::builder()
+            .api_key("test-key")
+            .base_url(server.uri())
+            .build()
+            .expect("client")
+    }
+
+    #[tokio::test]
+    async fn beta_header_reaches_the_wire() {
+        let server = MockServer::start().await;
+
+        // The mock ONLY matches if anthropic-beta carries the opted-in feature.
+        // If the header is missing or wrong, no mock matches, the server 404s,
+        // and `create` returns Err — so this test fails.
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(beta_message_response()))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let params = BetaMessageCreateParams::new(
+            Model::claude_sonnet_4_5_latest(),
+            vec![BetaMessageParam::user("Hello!")],
+            1024,
+        )
+        .with_beta(BetaFeature::InterleavedThinking20250122);
+
+        client_for(&server)
+            .beta()
+            .messages()
+            .create(params)
+            .await
+            .expect("request failed");
+
+        assert_eq!(
+            sent_beta_header(&server).await.as_deref(),
+            Some("interleaved-thinking-2025-01-22"),
+            "with_beta() was set but the anthropic-beta header never reached the request"
+        );
+    }
+
+    #[tokio::test]
+    async fn multiple_betas_are_sent_comma_separated() {
+        let server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(beta_message_response()))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let params = BetaMessageCreateParams::new(
+            Model::claude_sonnet_4_5_latest(),
+            vec![BetaMessageParam::user("Hello!")],
+            1024,
+        )
+        .with_beta(BetaFeature::InterleavedThinking20250122)
+        .with_beta(BetaFeature::ComputerUse20250124);
+
+        client_for(&server)
+            .beta()
+            .messages()
+            .create(params)
+            .await
+            .expect("request failed");
+
+        assert_eq!(
+            sent_beta_header(&server).await.as_deref(),
+            Some("interleaved-thinking-2025-01-22,computer-use-2025-01-24"),
+            "multiple betas must be sent comma-separated in one header"
+        );
+    }
+
+    #[tokio::test]
+    async fn no_betas_means_no_beta_header() {
+        let server = MockServer::start().await;
+
+        // An empty `betas` must not decorate the request with an empty header.
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(beta_message_response()))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let params = BetaMessageCreateParams::new(
+            Model::claude_sonnet_4_5_latest(),
+            vec![BetaMessageParam::user("Hello!")],
+            1024,
+        );
+
+        let result = client_for(&server).beta().messages().create(params).await;
+        assert!(result.is_ok(), "{result:?}");
+
+        assert_eq!(
+            sent_beta_header(&server).await,
+            None,
+            "sent an anthropic-beta header when no betas were requested"
+        );
+    }
+
+    #[tokio::test]
+    async fn count_tokens_also_sends_the_beta_header() {
+        let server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/v1/messages/count_tokens"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "input_tokens": 42
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let params = BetaMessageCountTokensParams {
+            model: Model::claude_sonnet_4_5_latest(),
+            messages: vec![BetaMessageParam::user("Hello!")],
+            betas: vec![BetaFeature::InterleavedThinking20250122],
+            system: None,
+            tools: None,
+            tool_choice: None,
+            thinking: None,
+        };
+
+        client_for(&server)
+            .beta()
+            .messages()
+            .count_tokens(params)
+            .await
+            .expect("request failed");
+
+        assert_eq!(
+            sent_beta_header(&server).await.as_deref(),
+            Some("interleaved-thinking-2025-01-22"),
+            "count_tokens dropped the anthropic-beta header"
+        );
+    }
+
+    // Guards the OTHER half of the old bug: the endpoint was `v1/messages?beta=true`,
+    // a query parameter that is not part of the API — a stand-in for the header that
+    // was never wired up. `path()` above would still match with a stray query string,
+    // so assert the query is absent explicitly.
+    #[tokio::test]
+    async fn beta_is_a_header_not_a_query_parameter() {
+        let server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(beta_message_response()))
+            .mount(&server)
+            .await;
+
+        let params = BetaMessageCreateParams::new(
+            Model::claude_sonnet_4_5_latest(),
+            vec![BetaMessageParam::user("Hello!")],
+            1024,
+        )
+        .with_beta(BetaFeature::InterleavedThinking20250122);
+
+        let _ = client_for(&server).beta().messages().create(params).await;
+
+        let sent = &server.received_requests().await.expect("requests")[0];
+        assert_eq!(
+            sent.url.query(),
+            None,
+            "beta must be signalled by the anthropic-beta header, not ?beta=true"
+        );
     }
 }
