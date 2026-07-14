@@ -763,12 +763,30 @@ mod tests {
     }
 
     // Helper to restore environment variables after tests
+    /// Serializes every test that touches process-wide environment variables.
+    ///
+    /// `std::env::set_var`/`remove_var` mutate state shared by the whole process,
+    /// but Rust runs tests in parallel threads *within one process*. Without this
+    /// lock, two region tests interleave between save and restore and clobber each
+    /// other. That is exactly what happened: three of these tests failed on Windows
+    /// while passing on Linux — a scheduling race, not a logic error. It went
+    /// unnoticed because CI had never run.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     struct EnvVarGuard {
         vars: Vec<(String, Option<String>)>,
+        // Held for the lifetime of the guard: no other env-touching test can run
+        // until this one has restored what it changed.
+        _lock: std::sync::MutexGuard<'static, ()>,
     }
 
     impl EnvVarGuard {
         fn new(var_names: &[&str]) -> Self {
+            // A panicking test poisons the mutex; that must not cascade into
+            // spurious failures in every other test.
+            let lock = ENV_LOCK
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             let vars = var_names
                 .iter()
                 .map(|name| {
@@ -777,7 +795,7 @@ mod tests {
                     ((*name).to_string(), value)
                 })
                 .collect();
-            Self { vars }
+            Self { vars, _lock: lock }
         }
     }
 
