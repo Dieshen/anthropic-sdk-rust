@@ -35,7 +35,7 @@ secrecy.workspace = true
 chrono.workspace = true
 
 # For JWT signing (Google service account auth)
-jsonwebtoken = "9.3"
+jsonwebtoken = "10.3"
 base64.workspace = true
 
 # For home directory detection (ADC file locations)
